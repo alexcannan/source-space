@@ -32,15 +32,12 @@ class SourceNode:
         self.children = []
         self.scan_level = 0
 
-    def set_children(self, children=self.links):
-        self.children = children
-
     def get_links(self):
+        print("Parsing", self.url)
         article = Article(self.url)
         article.download()
         article.parse()
         self.links = article.links
-        return links
 
     def filter_links(self, ignore_local=True, check_blacklist=True):
         local_base = get_url_base(self.url)
