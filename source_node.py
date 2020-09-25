@@ -34,10 +34,14 @@ class SourceNode:
 
     def get_links(self):
         print("Parsing", self.url)
-        article = Article(self.url)
-        article.download()
-        article.parse()
-        self.links = article.links
+        try:
+            article = Article(self.url)
+            article.download()
+            article.parse()
+            self.links = article.links
+        except Exception as e:
+            print("Failed to parse", self.url)
+            print(e)
 
     def filter_links(self, ignore_local=True, check_blacklist=True):
         local_base = get_url_base(self.url)
