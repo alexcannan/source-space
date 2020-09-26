@@ -67,6 +67,11 @@ def recursive_source_check(url, max_level=3):
     return G
 
 
+def save_source_tree(G):
+    nx.write_gpickle(G, "source_tree.pickle")
+
+
 if __name__ == '__main__':
     G = recursive_source_check(url, max_level=3)
+    save_source_tree(G)
     draw_source_tree_matplotlib(G)
