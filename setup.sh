@@ -1,9 +1,18 @@
-git clone https://github.com/alexcannan/newspaper.git
+set -eufo pipefail
 
-cd newspaper/
-python -m pip install -r requirements.txt
-python setup.py install
-cd ..
+if [ ! -d env/ ]; then
+    python3 -m venv env
+    source env/bin/activate
 
-python -m pip install -r requirements.txt
-rm -rf newspaper
+    git clone https://github.com/alexcannan/newspaper.git
+
+    cd newspaper/
+    python -m pip install -r requirements.txt
+    python setup.py install
+    cd ..
+
+    python -m pip install -r requirements.txt
+    rm -rf newspaper
+fi
+
+source env/bin/activate
