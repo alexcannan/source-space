@@ -5,6 +5,7 @@ Purpose: This module will be the main script to call when searching for article
 sources. Right now the url is hardcoded, but this can be replaced by argparse.
 """
 
+import operator
 from pprint import pprint
 from urllib.parse import urlparse, urlunparse
 
@@ -50,7 +51,8 @@ def get_sources(G, node_url):
                        parsed=False,
                        pos=[new_depth,
                             count_articles_at_depth(G, new_depth)],
-                       domain=get_domain(link)+"\n")
+                       domain=get_domain(link)
+                       )
         G.add_edge(node_url, clean_url(link))
     G.nodes[node_url]["parsed"] = True
     return G
@@ -67,6 +69,20 @@ def recursive_source_check(url, max_level=3):
     return G
 
 
+def source_tree_report(G):
+    """ Reports various information about source tree """
+    # TODO: Get most cited articles, maybe run domains through
+    #       a web credibility project
+    # Get most referenced articles
+    ref_dict = {}
+    for node in G.nodes:
+        ref_dict[node] = G.in_degree[node]
+    most_refd = max(ref_dict.items(), key=operator.itemgetter(1))[0]
+    print("Most referenced article:", most_refd)
+    print("With", ref_dict[most_refd], "citations")
+    return ref_dict
+
+
 def save_source_tree(G):
     nx.write_gpickle(G, "source_tree.pickle")
 
@@ -74,4 +90,5 @@ def save_source_tree(G):
 if __name__ == '__main__':
     G = recursive_source_check(url, max_level=3)
     save_source_tree(G)
-    draw_source_tree_matplotlib(G)
+    # draw_source_tree_matplotlib(G)
+    r = source_tree_report(G)

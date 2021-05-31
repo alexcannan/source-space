@@ -27,13 +27,22 @@ def draw_source_tree_matplotlib(G):
 
 def draw_source_tree_graphviz(G):
     """ Displays graph using networkx's graphviz bindings """
+    rename_mapping = {}
+    for node in G.nodes:
+        G.nodes[node]["url"] = node
+        domain = G.nodes[node]["domain"]
+        while domain in rename_mapping.values():
+            domain += "+"
+        rename_mapping[node] = domain
+    G = nx.relabel_nodes(G, rename_mapping)
     a = nx.nx_agraph.to_agraph(G)
+    print(a)
     a.layout(prog="dot")
     # TODO: Figure out how to draw extra data & use title and domain
     #       as main info
     a.draw("source_tree.png")
-    return
+    return a
 
 if __name__ == '__main__':
     G = nx.read_gpickle("source_tree.pickle")
-    draw_source_tree_graphviz(G)
+    a = draw_source_tree_graphviz(G)

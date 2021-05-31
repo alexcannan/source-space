@@ -24,6 +24,16 @@ def read_blacklist():
         return blacklist
 
 
+def blacklist_check(badurl, base):
+    X = base.split(".")
+    A = badurl.split(".")
+    for i in range(len(X) - len(A) + 1):
+        if A == X[i:i+len(A)]:
+            return True
+    return False
+
+
+
 class SourceNode:
     def __init__(self, url, parent=None):
         self.url = url
@@ -53,7 +63,7 @@ class SourceNode:
             if ignore_local and base == local_base:
                 link_good = False
             for badurl in blacklist:
-                if badurl in base:
+                if blacklist_check(badurl, base):
                     link_good = False
             if base == '':
                 link_good = False
@@ -63,4 +73,4 @@ class SourceNode:
 
 
 if __name__ == '__main__':
-    print(read_blacklist())
+    print("Bad links:", read_blacklist())

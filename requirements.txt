@@ -1,3 +1,4 @@
 networkx
 matplotlib
 pygraphviz
+# newspaper  (currently in git:alexcannan/newspaper)
