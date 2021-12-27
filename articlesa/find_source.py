@@ -12,8 +12,8 @@ from urllib.parse import urlparse, urlunparse
 import networkx as nx
 from newspaper import Article
 
-from source_node import SourceNode
-from visualize import draw_source_tree_matplotlib
+from .source_node import SourceNode
+from .visualize import draw_source_tree_matplotlib
 
 url = 'https://www.thegatewaypundit.com/2019/11/revealed-adam-schiff-connected-to-both-companies-named-in-7-4-billion-burisma-us-ukraine-corruption-case/'
 # url = "https://www.cnn.com/2020/08/22/politics/donald-trump-popular-vote-analysis/index.html"

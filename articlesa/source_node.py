@@ -9,6 +9,8 @@ from urllib.parse import urlparse
 
 from newspaper import Article
 
+from .logger import logger
+
 
 def get_url_base(url):
     return urlparse(url).netloc
@@ -33,7 +35,6 @@ def blacklist_check(badurl, base):
     return False
 
 
-
 class SourceNode:
     def __init__(self, url, parent=None):
         self.url = url
@@ -43,15 +44,14 @@ class SourceNode:
         self.scan_level = 0
 
     def get_links(self):
-        print("Parsing", self.url)
+        logger.info(f"Parsing {self.url}")
         try:
             article = Article(self.url)
             article.download()
             article.parse()
             self.links = article.links
         except Exception as e:
-            print("Failed to parse", self.url)
-            print(e)
+            logger.opt(exception=e).warning(f"Failed to parse {self.url}")
 
     def filter_links(self, ignore_local=True, check_blacklist=True):
         local_base = get_url_base(self.url)

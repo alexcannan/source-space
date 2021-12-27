@@ -6,12 +6,12 @@ if [ ! -d env/ ]; then
 
     git clone https://github.com/alexcannan/newspaper.git
     cd newspaper/
-    python -m pip install -r requirements.txt
-    python setup.py install
+    python3 -m pip install -r requirements.txt
+    python3 setup.py install
     cd ..
     rm -rf newspaper
 
-    python -m pip install -e .
+    python3 -m pip install -e .
 fi
 
 source env/bin/activate
