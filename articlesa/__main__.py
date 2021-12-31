@@ -1,7 +1,7 @@
 import argparse
 
-from articlesa.find_source import recursive_source_check
-from articlesa.visualize import draw_source_tree_graphviz
+from .core.find_source import recursive_source_check
+from .viz.visualize import draw_source_tree_matplotlib
 
 
 parser = argparse.ArgumentParser(description="\
@@ -12,4 +12,4 @@ parser.add_argument("--depth", "-d", type=int, default=3, help="depth of recursi
 args = parser.parse_args()
 
 G = recursive_source_check(args.url, max_level=args.depth)
-draw_source_tree_graphviz(G)
+draw_source_tree_matplotlib(G)

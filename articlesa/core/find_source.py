@@ -13,7 +13,7 @@ import networkx as nx
 from newspaper import Article
 
 from .source_node import SourceNode
-from .visualize import draw_source_tree_matplotlib
+from ..viz.visualize import draw_source_tree_matplotlib
 
 url = 'https://www.thegatewaypundit.com/2019/11/revealed-adam-schiff-connected-to-both-companies-named-in-7-4-billion-burisma-us-ukraine-corruption-case/'
 # url = "https://www.cnn.com/2020/08/22/politics/donald-trump-popular-vote-analysis/index.html"
@@ -43,7 +43,7 @@ def get_sources(G, node_url):
     new_depth = G.nodes[node_url]["scan_depth"] + 1
     node = SourceNode(node_url)
     node.get_links()
-    node.filter_links(check_blacklist=False, ignore_local=False)
+    node.filter_links(check_blacklist=True, ignore_local=False)
     for i, link in enumerate(node.links):
         if clean_url(link) not in G:
             G.add_node(clean_url(link),

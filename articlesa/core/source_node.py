@@ -9,7 +9,7 @@ from urllib.parse import urlparse
 
 from newspaper import Article
 
-from .logger import logger
+from ..logger import logger
 
 
 def get_url_base(url):
@@ -62,9 +62,10 @@ class SourceNode:
             base = get_url_base(link)
             if ignore_local and base == local_base:
                 link_good = False
-            for badurl in blacklist:
-                if blacklist_check(badurl, base):
-                    link_good = False
+            if check_blacklist:
+                for badurl in blacklist:
+                    if blacklist_check(badurl, base):
+                        link_good = False
             if base == '':
                 link_good = False
             if link_good:
