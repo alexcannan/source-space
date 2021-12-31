@@ -3,3 +3,7 @@ matplotlib
 pygraphviz
 loguru
 # newspaper  (currently in git:alexcannan/newspaper)
+fastapi
+markupsafe
+jinja2
+uvicorn
