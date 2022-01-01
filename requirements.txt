@@ -6,4 +6,4 @@ loguru
 fastapi
 markupsafe
 jinja2
-uvicorn
+uvicorn[standard]

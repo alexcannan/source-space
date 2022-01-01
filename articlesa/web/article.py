@@ -20,7 +20,7 @@ app.include_router(articlesa.web.home.router)
 
 
 @app.get("/a/{article_url:path}", response_class=HTMLResponse)
-async def article(article_url: str, request: Request, depth: int=2):
+async def article(request: Request, article_url: str, depth: int=2):
     env = Environment(loader=FileSystemLoader(Path(__file__).parent))
     template = env.get_template('article.html')
 
@@ -31,11 +31,10 @@ async def article(article_url: str, request: Request, depth: int=2):
 
 @app.websocket("/ws/a/{article_url:path}")
 async def article_websocket(websocket: WebSocket):
-    # TODO: why isn't this being entered?
     await websocket.accept()
     article_url = websocket.path_params['article_url']
 
-    websocket.send_text("console.log('hello from ws')")
+    await websocket.send_text("console.log('hello from ws')")
 
     article_url = unquote_plus(article_url)
 
@@ -43,9 +42,23 @@ async def article_websocket(websocket: WebSocket):
     logger.info(G.nodes)
     logger.info(G.edges)
 
-    websocket.send_text(f"""
-        chart = ForceGraph(nodes: {json.dumps([G.nodes])}, edges: {json.dumps([G.edges])})
-    """)
+    formatted_nodes = [{"id": k, **v} for k, v in G.nodes(data=True)]
+    formatted_edges = [{"source": x[0], "target": x[1], **x[2]} for x in G.edges(data=True)]
+
+    data = f"""{{nodes: {json.dumps(formatted_nodes)}, links: {json.dumps(formatted_edges)}}}"""
+    a = f"""
+        chart = ForceGraph({data}, {{
+            nodeId: d => d.id,
+            nodeGroup: d => d.scan_depth,
+            nodeTitle: d => `${{d.id}}\n${{d.group}}`,
+            linkStrokeWidth: l => Math.sqrt(1),
+            width: 600,
+            height: 600
+        }});
+        document.body.appendChild(chart);
+    """
+    logger.info(f"sending {a}")
+    await websocket.send_text(a)
 
     while True:
         data = await websocket.receive_text()
