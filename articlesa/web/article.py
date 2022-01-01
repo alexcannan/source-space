@@ -20,7 +20,7 @@ app.include_router(articlesa.web.home.router)
 
 
 @app.get("/a/{article_url:path}", response_class=HTMLResponse)
-async def article(request: Request, article_url: str, depth: int=2):
+async def article(request: Request, article_url: str):
     env = Environment(loader=FileSystemLoader(Path(__file__).parent))
     template = env.get_template('article.html')
 
@@ -30,7 +30,7 @@ async def article(request: Request, article_url: str, depth: int=2):
 
 
 @app.websocket("/ws/a/{article_url:path}")
-async def article_websocket(websocket: WebSocket):
+async def article_websocket(websocket: WebSocket, depth: int=2):
     await websocket.accept()
     article_url = websocket.path_params['article_url']
 
@@ -39,8 +39,8 @@ async def article_websocket(websocket: WebSocket):
     article_url = unquote_plus(article_url)
 
     G = recursive_source_check(article_url, max_level=2)
-    logger.info(G.nodes)
-    logger.info(G.edges)
+    logger.info(G.nodes(data=True))
+    logger.info(G.edges(data=True))
 
     formatted_nodes = [{"id": k, **v} for k, v in G.nodes(data=True)]
     formatted_edges = [{"source": x[0], "target": x[1], **x[2]} for x in G.edges(data=True)]
@@ -49,11 +49,14 @@ async def article_websocket(websocket: WebSocket):
     a = f"""
         chart = ForceGraph({data}, {{
             nodeId: d => d.id,
+            nodeRadius: d => 5+5+Number(d.scan_depth),
             nodeGroup: d => d.scan_depth,
             nodeTitle: d => `${{d.id}}\n${{d.group}}`,
+            nodeStrength: 0.1,
             linkStrokeWidth: l => Math.sqrt(1),
-            width: 600,
-            height: 600
+            linkStrength: 1e-3,
+            width: window.screen.width,
+            height: window.screen.height
         }});
         document.body.appendChild(chart);
     """
