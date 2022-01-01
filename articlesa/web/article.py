@@ -49,7 +49,7 @@ async def article_websocket(websocket: WebSocket, depth: int=2):
     a = f"""
         chart = ForceGraph({data}, {{
             nodeId: d => d.id,
-            nodeRadius: d => 5+5+Number(d.scan_depth),
+            nodeRadius: d => 5,
             nodeGroup: d => d.scan_depth,
             nodeTitle: d => `${{d.id}}\n${{d.group}}`,
             nodeStrength: 0.1,
