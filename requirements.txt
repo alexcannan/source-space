@@ -7,3 +7,4 @@ fastapi
 markupsafe
 jinja2
 uvicorn[standard]
+yarl

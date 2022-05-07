@@ -20,9 +20,8 @@ def read_blacklist():
     with open('blacklist.txt', 'r') as f:
         blacklist = []
         for line in f:
-            blacklist.append(line.lstrip().rstrip())
-        while '' in blacklist:
-            blacklist.remove('')
+            if (sline := line.strip()):
+                blacklist.append(sline)
         return blacklist
 
 
