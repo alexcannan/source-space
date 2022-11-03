@@ -8,3 +8,4 @@ markupsafe
 jinja2
 uvicorn[standard]
 yarl
+pytest

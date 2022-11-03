@@ -5,4 +5,7 @@ from yarl import URL
 
 
 def clean_url(url: Union[str, URL]) -> str:
-    return urlunparse(urlparse(str(url)))
+    """ parse article urls, remove query strings and fragments """
+    _parsed = urlparse(str(url))
+    _parsed = _parsed._replace(query='', fragment='')
+    return urlunparse(_parsed)
