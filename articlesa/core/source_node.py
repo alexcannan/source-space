@@ -35,6 +35,11 @@ def blacklist_check(badurl, base):
 
 
 class SourceNode:
+    """
+    SourceNode is a class that represents a single article. It has a URL, a list of links (children),
+    and a list of parents (usually unary). It uses the newspaper3k package to download and parse the
+    article, and then filters the links to remove local links and links that are blacklisted.
+    """
     def __init__(self, url, parent=None):
         self.url = url
         self.links = []
@@ -50,7 +55,7 @@ class SourceNode:
             article.parse()
             self.links = article.links
         except Exception as e:
-            logger.opt(exception=e).warning(f"Failed to parse {self.url}")
+            logger.opt(exception=e).error(f"Failed to parse {self.url}")
 
     def filter_links(self, ignore_local=True, check_blacklist=True):
         local_base = get_url_base(self.url)
