@@ -49,14 +49,14 @@ async def article_websocket(websocket: WebSocket, depth: int=2):
     a = f"""
         chart = ForceGraph({data}, {{
             nodeId: d => d.id,
-            nodeRadius: d => 5,
+            nodeRadius: d => 10,
             nodeGroup: d => d.scan_depth,
-            nodeTitle: d => `${{d.id}}\n${{d.group}}`,
-            nodeStrength: 0.1,
+            nodeTitle: d => `${{d.id}}\ntier ${{d.scan_depth}}`,
+            nodeStrength: 1,
             linkStrokeWidth: l => Math.sqrt(1),
-            linkStrength: 1e-3,
-            width: window.screen.width,
-            height: window.screen.height
+            linkStrength: 1,
+            width: 400,
+            height: 400
         }});
         document.body.appendChild(chart);
     """
