@@ -5,6 +5,7 @@ from fastapi.responses import HTMLResponse
 from jinja2 import Environment, FileSystemLoader, escape
 
 from articlesa.logger import logger
+import articlesa.worker
 
 
 router = APIRouter()
@@ -29,4 +30,3 @@ async def home_websocket(websocket: WebSocket):
     while True:
         data = await websocket.receive_text()
         logger.info("got command: {}", data)
-

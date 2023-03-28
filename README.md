@@ -4,7 +4,7 @@ Build a source tree from a news article recursively
 
 ```
 source setup.sh
-python3 -m articlesa.web.article
+python3 -m articlesa.front.article
 ```
 
 
@@ -29,7 +29,7 @@ classDiagram
     class ArticleNode{
         transientId: uuid?
         depth: int
-        status: str (an emoji?)
+        status: str
     }
     class Link{
         transientId: uuid?
