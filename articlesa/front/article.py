@@ -8,6 +8,7 @@ from fastapi import FastAPI, Request, WebSocket
 from fastapi.responses import HTMLResponse
 from jinja2 import Environment, FileSystemLoader, escape
 
+from articlesa.core.types import SourceNode, SourceTree
 from articlesa.logger import logger
 import articlesa.front.home
 from articlesa.worker import worker
@@ -28,11 +29,7 @@ app.on_event("shutdown")(worker.shutdown)
 async def article(request: Request, article_url: str):
     env = Environment(loader=FileSystemLoader(Path(__file__).parent))
     template = env.get_template('article.html')
-
-    await worker.clean_and_add_article(article_url)
-
     article_url = unquote_plus(article_url)
-
     return HTMLResponse(template.render(title=f"analysis of {article_url}"))
 
 
@@ -41,6 +38,12 @@ async def article_websocket(websocket: WebSocket, depth: int=2):
     await websocket.accept()
     article_url = websocket.path_params['article_url']
     await websocket.send_text("console.log('hello from ws')")
+
+    cleaned_url = await worker.clean_and_add_article(article_url)
+    rootarticle = await worker.wait_for_article(cleaned_url)
+    root = SourceNode.from_db_article(rootarticle, depth=0)
+    tree = SourceTree(root)
+
     while True:
         data = await websocket.receive_text()
         logger.info("got command: {}", data)

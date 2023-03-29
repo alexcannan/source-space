@@ -6,10 +6,11 @@ handed to it.
 """
 
 import asyncio
-import hashlib
+from datetime import datetime
+import random
 
 from aiohttp import ClientSession
-from motor.motor_asyncio import AsyncIOMotorClient
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorCollection
 from newspaper import Article as NewspaperArticle
 from tqdm import tqdm
 
@@ -21,12 +22,13 @@ class ArticleWorker:
     def __init__(self, n_workers=10):
         self.client = AsyncIOMotorClient("mongodb://localhost:27017")
         self.db = self.client.articlesa
+        self.articles: AsyncIOMotorCollection = self.db.articles
         self.queue = asyncio.Queue()
         self.n_workers = n_workers
         self.tasks = []
 
     async def startup(self):
-        self.session = await ClientSession(headers={"User-Agent": "articlesa"}).__aenter__()
+        self.session = await ClientSession().__aenter__()
         logger.info(f"starting {self.n_workers} workers")
         self.tasks.append(asyncio.create_task(self.run()))
 
@@ -41,8 +43,12 @@ class ArticleWorker:
             pbar.close()
         await self.session.close()
 
+    def _get_time(self):
+        return datetime.utcnow()
+
     async def add_article(self, url: str):
-        async with self.session.get(url, ssl=False) as response:
+        headers = {"User-Agent": f"articlesa-{random.randint(0, 1000000)}"}
+        async with self.session.get(url, ssl=False, headers=headers) as response:
             response.raise_for_status()
             content = await response.text()
         nparticle = NewspaperArticle(url)
@@ -55,16 +61,20 @@ class ArticleWorker:
                             authors=nparticle.authors,
                             links=nparticle.links,)
         if (dbarticle := await self.get_article(url)):
-            result = await self.db.articles.update_one({'_id': dbarticle['_id']}, {'$set': article.to_mongo_dict()}, upsert=True)
+            updated_data = {**article.to_mongo_dict(), "updatedAt": self._get_time()}; del updated_data['url']
+            result = await self.articles.update_one({'_id': dbarticle['_id']}, {'$set': updated_data})
         else:
-            result = await self.db.articles.insert_one(article.to_mongo_dict())
-        logger.info(f"inserted {url} into db, response: {result}")
+            result = await self.articles.insert_one({**article.to_mongo_dict(), "createdAt": self._get_time()})
+        logger.info(f"inserted {url} into db, response: {result.raw_result}")
 
     async def _run(self):
         while True:
             url = await self.queue.get()
             logger.info(f"processing {url}")
-            await self.add_article(url)
+            try:
+                await self.add_article(url)
+            except Exception as e:
+                logger.error(f"error processing {url}: {e}")
             self.queue.task_done()
 
     async def run(self):
@@ -77,15 +87,26 @@ class ArticleWorker:
         logger.debug(f"adding to queue: {cleaned_url}")
         print(self.tasks)
         await self.queue.put(cleaned_url)
+        return cleaned_url
 
     async def get_article(self, url: str):
         """ get article from db. """
         cleaned_url = clean_url(url)
         logger.debug(f"getting article from db: {cleaned_url}")
-        article = await self.db.article.find_one({"url": cleaned_url})
+        article = await self.articles.find_one({"url": cleaned_url}, ['_id', 'url', 'title', 'createdAt', 'updatedAt'])
         if not article:
             return None
         return article
+
+    async def wait_for_article(self, url: str):
+        """ waits for article to be processed """
+        if url not in self.queue._queue:
+            raise ValueError(f"{url} not in queue")
+        while True:
+            if not (dbarticle := await self.articles.find_one({"url": url})):
+                await asyncio.sleep(1)
+                continue
+            return dbarticle
 
 
 worker = ArticleWorker()
@@ -94,7 +115,7 @@ worker = ArticleWorker()
 if __name__ == '__main__':
     async def main():
         await worker.startup()
-        await worker.add_article("https://www.thegatewaypundit.com/2019/11/revealed-adam-schiff-connected-to-both-companies-named-in-7-4-billion-burisma-us-ukraine-corruption-case/")
+        await worker.clean_and_add_article("https://www.thegatewaypundit.com/2019/11/revealed-adam-schiff-connected-to-both-companies-named-in-7-4-billion-burisma-us-ukraine-corruption-case/")
         await worker.shutdown()
 
     asyncio.run(main())

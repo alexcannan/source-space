@@ -15,7 +15,7 @@ python3 -m articlesa.front.article
 title: Article Source Aggregator
 ---
 classDiagram
-    Article <|--|> ArticleNode : backend/frontend
+    Article <|--|> SourceNode : backend/frontend
     class Article{
         mongoId: ObjectId
         url: str
@@ -26,7 +26,7 @@ classDiagram
         allChildren: set[Article]
         fromUrl(url: str): Article
     }
-    class ArticleNode{
+    class SourceNode{
         transientId: uuid?
         depth: int
         status: str
@@ -34,14 +34,14 @@ classDiagram
     class Link{
         transientId: uuid?
         internal: bool
-        from: ArticleNode
-        to: ArticleNode
+        from: SourceNode
+        to: SourceNode
     }
-    ArticleTree <|-- ArticleNode : child
-    ArticleTree <|-- Link : child
-    class ArticleTree{
-        root: ArticleNode
-        nodes: list[ArticleNode]
+    SourceTree <|-- SourceNode : child
+    SourceTree <|-- Link : child
+    class SourceTree{
+        root: SourceNode
+        nodes: list[SourceNode]
         links: list[Link]
         composeMermaid(): str
     }
