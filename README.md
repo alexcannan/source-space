@@ -47,6 +47,22 @@ classDiagram
     }
 ```
 
+## Displaying the tree
+
+SourceNodes are nodes on a graph. Links are edges on a graph.
+
+SourceTree goes left to right, depth levels are TB subgraphs.
+
+```mermaid
+graph LR
+    A[Article] --> B[SourceNode]
+    B --> C[SourceTree]
+    C --> D[SourceNode]
+    C --> E[Link]
+    D --> F[SourceNode]
+    E --> G[SourceNode]
+    E --> H[SourceNode]
+```
 
 ### URLs to test
 

@@ -8,13 +8,14 @@ handed to it.
 import asyncio
 from datetime import datetime
 import random
+from typing import AsyncGenerator
 
 from aiohttp import ClientSession
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorCollection
 from newspaper import Article as NewspaperArticle
 from tqdm import tqdm
 
-from articlesa.core.types import Article, clean_url
+from articlesa.core.types import Article, SourceTree, clean_url
 from articlesa.logger import logger
 
 
@@ -54,7 +55,6 @@ class ArticleWorker:
         nparticle = NewspaperArticle(url)
         nparticle.download(input_html=content)
         nparticle.parse()
-        logger.info(f"parsed {url}")
         article = Article(url=url,
                             title=nparticle.title,
                             text=nparticle.text,
@@ -85,7 +85,6 @@ class ArticleWorker:
         """ fire and forget url through the article processing pipeline. up to client to check existence. """
         cleaned_url = clean_url(url)
         logger.debug(f"adding to queue: {cleaned_url}")
-        print(self.tasks)
         await self.queue.put(cleaned_url)
         return cleaned_url
 
@@ -93,7 +92,7 @@ class ArticleWorker:
         """ get article from db. """
         cleaned_url = clean_url(url)
         logger.debug(f"getting article from db: {cleaned_url}")
-        article = await self.articles.find_one({"url": cleaned_url}, ['_id', 'url', 'title', 'createdAt', 'updatedAt'])
+        article = await self.articles.find_one({"url": cleaned_url})
         if not article:
             return None
         return article
@@ -107,6 +106,34 @@ class ArticleWorker:
                 await asyncio.sleep(1)
                 continue
             return dbarticle
+
+    async def build_tree(self, tree: SourceTree, depth: int) -> AsyncGenerator[SourceTree, None]:
+        """ build a tree of articles from a source """
+        if depth == 0:
+            return tree
+        assert len(tree.nodes) == 1, 'tree must have exactly one root node, resumption not implemented'
+        while not tree.is_complete(depth):
+            # create unprocessed nodes from processed node links
+            for node in tree.nodes:
+                if node.parsed:
+                    children = node.make_children()
+                    links = node.make_links()
+                    # TODO: something idk
+            unparsed_nodes = [node for node in tree.nodes if not node.parsed]
+            # submit all unprocessed nodes not in queue
+            for node in unparsed_nodes:
+                if node not in self.queue._queue:
+                    await self.queue.put(node.url)
+            # await for at least one to complete, update tree, yield tree
+            await asyncio.wait([self.wait_for_article(node.url) for node in unparsed_nodes], return_when=asyncio.FIRST_COMPLETED)
+            dbarticles = await asyncio.gather(*[self.get_article(node.url) for node in unparsed_nodes])
+            for dbarticle in dbarticles:
+                if dbarticle:
+                    article = Article.from_mongo_dict(dbarticle)
+                    # TODO: something idk
+
+
+
 
 
 worker = ArticleWorker()
