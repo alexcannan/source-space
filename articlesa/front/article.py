@@ -44,7 +44,7 @@ async def article_websocket(websocket: WebSocket, depth: int=2):
     root = SourceNode.from_db_article(rootarticle, depth=0)
     root.parsed = True
     tree = SourceTree(root)
-    async for tree in await worker.build_tree(tree, depth=depth):
+    async for tree in worker.build_tree(tree, depth=depth):
         await websocket.send_text(f"console.log('got tree: {tree}')")
         await websocket.send_text(f"window.tree = {json.dumps(tree)}")
 

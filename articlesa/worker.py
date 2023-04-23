@@ -15,7 +15,7 @@ from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorCollection
 from newspaper import Article as NewspaperArticle
 from tqdm import tqdm
 
-from articlesa.core.types import Article, SourceTree, clean_url
+from articlesa.core.types import Article, SourceNode, SourceTree, clean_url
 from articlesa.logger import logger
 
 
@@ -107,18 +107,22 @@ class ArticleWorker:
                 continue
             return dbarticle
 
-    async def build_tree(self, tree: SourceTree, depth: int) -> AsyncGenerator[SourceTree, None]:
+    async def build_tree(self, tree: SourceTree, depth: int):
         """ build a tree of articles from a source """
         if depth == 0:
-            return tree
+            yield tree
         assert len(tree.nodes) == 1, 'tree must have exactly one root node, resumption not implemented'
         while not tree.is_complete(depth):
             # create unprocessed nodes from processed node links
             for node in tree.nodes:
-                if node.parsed:
+                if not node.parsed:
                     children = node.make_children()
+                    for child in children:
+                        tree.add_node(SourceNode.from_article(child))
                     links = node.make_links()
-                    # TODO: something idk
+                    for link in links:
+                        tree.add_link(link)
+                    node.parsed = True
             unparsed_nodes = [node for node in tree.nodes if not node.parsed]
             # submit all unprocessed nodes not in queue
             for node in unparsed_nodes:
@@ -129,11 +133,10 @@ class ArticleWorker:
             dbarticles = await asyncio.gather(*[self.get_article(node.url) for node in unparsed_nodes])
             for dbarticle in dbarticles:
                 if dbarticle:
-                    article = Article.from_mongo_dict(dbarticle)
-                    # TODO: something idk
-
-
-
+                    article = SourceNode.from_db_article(dbarticle)
+                    tree.update_node(article)
+            yield tree
+        yield tree
 
 
 worker = ArticleWorker()

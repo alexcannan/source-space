@@ -1,5 +1,7 @@
+from collections import defaultdict
 from dataclasses import dataclass, field
 import hashlib
+from textwrap import indent
 from typing import Union
 from urllib.parse import urlunparse, urlparse
 
@@ -38,6 +40,10 @@ class Article:
         if hasattr(self, '_id'):
             return self._id
         return ObjectId()
+
+    @property
+    def domain(self) -> str:
+        return urlparse(self.url).netloc
 
     @property
     def urlHash(self) -> str:
@@ -100,9 +106,18 @@ class SourceNode(Article):
     status: str = '🐲'
     transientId: str = ObjectId()
 
+    def make_mermaid(self) -> str:
+        """ generates a string to place inside mermaid node representing this SourceNode """
+        content = "\n".join([
+            self.title,
+            f'<a href="{self.url}">{self.domain}</a>',
+            self.status,
+            self.hits
+        ])
+        return f'{self.transientId}[{content}]'
+
     @classmethod
-    def from_db_article(cls, dbarticle: dict, depth: int) -> 'SourceNode':
-        article = Article.from_mongo_dict(dbarticle)
+    def from_article(cls, article: Article, depth: int) -> 'SourceNode':
         return cls(
             url=article.url,
             title=article.title,
@@ -112,6 +127,11 @@ class SourceNode(Article):
             depth=depth,
         )
 
+    @classmethod
+    def from_db_article(cls, dbarticle: dict, depth: int) -> 'SourceNode':
+        article = Article.from_mongo_dict(dbarticle)
+        return cls.from_article(article, depth)
+
 
 @dataclass
 class Link:
@@ -119,6 +139,10 @@ class Link:
     target: SourceNode
     internal: bool
     transientId: str = ObjectId()
+
+    def make_mermaid(self) -> str:
+        """ generates a string to place inside mermaid link representing this Link """
+        return f'{self.source.transientId} --> {self.target.transientId}'
 
 
 @dataclass
@@ -130,6 +154,25 @@ class SourceTree:
     def __post_init__(self):
         self.nodes.append(self.root)
 
+    def add_node(self, node: SourceNode):
+        self.nodes.append(node)
+
+    def add_link(self, link: Link):
+        self.links.append(link)
+
+    def update_node(self, node: SourceNode):
+        # update Article information but leave SourceNode information
+        for i, n in enumerate(self.nodes):
+            if n.url == node.url:
+                depth, parsed, status, transientId = n.depth, n.parsed, n.status, n.transientId
+                self.nodes[i] = node
+                self.nodes[i].depth = depth
+                self.nodes[i].parsed = parsed
+                self.nodes[i].status = status
+                self.nodes[i].transientId = transientId
+                return
+        raise ValueError(f"node {node.url} not found")
+
     def is_complete(self, depth: int) -> bool:
         return all(node.depth >= depth or node.parsed for node in self.nodes)
 
@@ -137,7 +180,23 @@ class SourceTree:
         return [node for node in self.nodes if not node.parsed]
 
     def compose_mermaid(self):
-        return f"""hi"""
+        indentation = '  '
+        depth_dict = defaultdict(list)
+        for node in self.nodes:
+            depth_dict[node.depth].append(node)
+        subgraphs = []
+        for depth, nodes in depth_dict.items():
+            subgraphs.append("\n".join(
+                f'subgraph TD {depth}',
+                indent("\n".join(node.make_mermaid() for node in nodes), indentation),
+                'end'
+            ))
+        return "\n".join(
+            'graph LR',
+            indent("\n".join(subgraphs), indentation),
+            indent("\n".join(link.make_mermaid() for link in self.links), indentation),
+            'end'
+        )
 
 
 def clean_url(url: Union[str, URL]) -> str:
