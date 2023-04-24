@@ -8,6 +8,8 @@ from urllib.parse import urlunparse, urlparse
 from bson import ObjectId
 from yarl import URL
 
+from articlesa.logger import logger
+
 
 class Blacklist:
     def __init__(self):
@@ -51,8 +53,6 @@ class Article:
 
     @property
     def textHash(self) -> str:
-        if not self.text:
-            raise ValueError("text not set")
         return hashlib.sha512(self.text.encode('utf-8')).hexdigest()
 
     @property
@@ -72,7 +72,7 @@ class Article:
         return linklist
 
     def make_children(self) -> list['Article']:
-        return [Article(url=link.target, title='', authors=[]) for link in self.make_links()]
+        return [Article(url=link.target, title='', authors=[], links=[]) for link in self.make_links()]
 
     def to_mongo_dict(self) -> dict:
         return {
@@ -135,14 +135,16 @@ class SourceNode(Article):
 
 @dataclass
 class Link:
-    source: SourceNode
-    target: SourceNode
+    source: SourceNode | str
+    target: SourceNode | str
     internal: bool
     transientId: str = ObjectId()
 
-    def make_mermaid(self) -> str:
+    def make_mermaid(self, urlmap: dict[str, ObjectId]) -> str:
         """ generates a string to place inside mermaid link representing this Link """
-        return f'{self.source.transientId} --> {self.target.transientId}'
+        _from = urlmap[self.source] if isinstance(self.source, str) else self.source.transientId
+        _to = urlmap[self.target] if isinstance(self.target, str) else self.target.transientId
+        return f'{_from} -{".-" if self.internal else "-"}> {_to}'
 
 
 @dataclass
@@ -164,9 +166,8 @@ class SourceTree:
         # update Article information but leave SourceNode information
         for i, n in enumerate(self.nodes):
             if n.url == node.url:
-                depth, parsed, status, transientId = n.depth, n.parsed, n.status, n.transientId
+                parsed, status, transientId = n.parsed, n.status, n.transientId
                 self.nodes[i] = node
-                self.nodes[i].depth = depth
                 self.nodes[i].parsed = parsed
                 self.nodes[i].status = status
                 self.nodes[i].transientId = transientId
@@ -180,7 +181,7 @@ class SourceTree:
         return [node for node in self.nodes if not node.parsed]
 
     def compose_mermaid(self, escape: bool=False):
-        indentation = '  '
+        indentation = ' ' * 2
         depth_dict = defaultdict(list)
         for node in self.nodes:
             depth_dict[node.depth].append(node)
@@ -191,11 +192,16 @@ class SourceTree:
                 indent("\n".join(node.make_mermaid() for node in nodes), indentation),
                 'end'
             ]))
+        logger.info(f'{self.links=}')
+        url_to_transient_map = {node.url: node.transientId for node in self.nodes}
         content = "\n".join([
             'graph LR',
             indent("\n".join(subgraphs), indentation),
-            indent("\n".join(link.make_mermaid() for link in self.links), indentation),
+            indent("\n".join(link.make_mermaid(urlmap=url_to_transient_map) for link in self.links), indentation),
         ])
+        # for testing
+        with open('mermaid.txt', 'w') as f:
+            f.write(content)
         if escape:
             return content.replace('\n', '<br>').replace('"', '').replace("'", '')
         else:

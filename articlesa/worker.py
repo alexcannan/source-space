@@ -8,7 +8,6 @@ handed to it.
 import asyncio
 from datetime import datetime
 import random
-from typing import AsyncGenerator
 
 from aiohttp import ClientSession
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorCollection
@@ -65,7 +64,7 @@ class ArticleWorker:
             result = await self.articles.update_one({'_id': dbarticle['_id']}, {'$set': updated_data})
         else:
             result = await self.articles.insert_one({**article.to_mongo_dict(), "createdAt": self._get_time()})
-        logger.info(f"inserted {url} into db, response: {result.raw_result}")
+        logger.info(f"inserted {url} into db, response: {result.raw_result if hasattr(result, 'raw_result') else result}")
 
     async def _run(self):
         while True:
@@ -115,10 +114,10 @@ class ArticleWorker:
         while not tree.is_complete(depth):
             # create unprocessed nodes from processed node links
             for node in tree.nodes:
-                if not node.parsed:
+                if not node.parsed and node.title:  # if processed by worker but not parsed by tree
                     children = node.make_children()
                     for child in children:
-                        tree.add_node(SourceNode.from_article(child))
+                        tree.add_node(SourceNode.from_article(child, depth=node.depth+1))
                     links = node.make_links()
                     for link in links:
                         tree.add_link(link)
@@ -129,11 +128,13 @@ class ArticleWorker:
                 if node not in self.queue._queue:
                     await self.queue.put(node.url)
             # await for at least one to complete, update tree, yield tree
+            if not unparsed_nodes:
+                continue
             await asyncio.wait([self.wait_for_article(node.url) for node in unparsed_nodes], return_when=asyncio.FIRST_COMPLETED)
             dbarticles = await asyncio.gather(*[self.get_article(node.url) for node in unparsed_nodes])
             for dbarticle in dbarticles:
                 if dbarticle:
-                    article = SourceNode.from_db_article(dbarticle)
+                    article = SourceNode.from_db_article(dbarticle, depth=-1)  # dummy depth, update_node won't change
                     tree.update_node(article)
             yield tree
         yield tree
