@@ -103,16 +103,16 @@ class Article:
 class SourceNode(Article):
     depth: int
     parsed: bool = False
-    status: str = '🐲'
+    status: str = 'cool dragon'
     transientId: str = ObjectId()
 
     def make_mermaid(self) -> str:
         """ generates a string to place inside mermaid node representing this SourceNode """
-        content = "\n".join([
+        content = "<br/>".join([
             self.title,
             f'<a href="{self.url}">{self.domain}</a>',
             self.status,
-            self.hits
+            f'hits: {self.hits}',
         ])
         return f'{self.transientId}[{content}]'
 
@@ -179,24 +179,27 @@ class SourceTree:
     def nodes_in_progress(self) -> list[SourceNode]:
         return [node for node in self.nodes if not node.parsed]
 
-    def compose_mermaid(self):
+    def compose_mermaid(self, escape: bool=False):
         indentation = '  '
         depth_dict = defaultdict(list)
         for node in self.nodes:
             depth_dict[node.depth].append(node)
         subgraphs = []
         for depth, nodes in depth_dict.items():
-            subgraphs.append("\n".join(
+            subgraphs.append("\n".join([
                 f'subgraph TD {depth}',
                 indent("\n".join(node.make_mermaid() for node in nodes), indentation),
                 'end'
-            ))
-        return "\n".join(
+            ]))
+        content = "\n".join([
             'graph LR',
             indent("\n".join(subgraphs), indentation),
             indent("\n".join(link.make_mermaid() for link in self.links), indentation),
-            'end'
-        )
+        ])
+        if escape:
+            return content.replace('\n', '<br>').replace('"', '').replace("'", '')
+        else:
+            return content
 
 
 def clean_url(url: Union[str, URL]) -> str:

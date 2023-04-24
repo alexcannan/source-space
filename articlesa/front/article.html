@@ -5,17 +5,18 @@
 <link href='https://fonts.googleapis.com/css?family=Manrope' rel='stylesheet'>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
 <title>{{ title }}</title>
-<meta property="og:title" content="{{ title }}"/>
+<meta property="og:title" content="Article Source Aggregator"/>
 <meta property="og:description" content="Article Source Aggregator"/>
 <style>
 {% include 'style.css' %}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@9/dist/mermaid.js"></script>
 <script>
 {% include 'article.js' %}
 </script>
-<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
 </head>
 <body>
-   <h2 id="articleName">Analysis of ...</h2>
+  <h2 id="articleName">Analysis of {{ url }}</h2>
+  <pre id="treegraph" class="mermaid"></pre>
 </body>
 </html>

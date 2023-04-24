@@ -30,7 +30,7 @@ async def article(request: Request, article_url: str):
     env = Environment(loader=FileSystemLoader(Path(__file__).parent))
     template = env.get_template('article.html')
     article_url = unquote_plus(article_url)
-    return HTMLResponse(template.render(title=f"analysis of {article_url}"))
+    return HTMLResponse(template.render(url=f"{article_url}"))
 
 
 @app.websocket("/ws/a/{article_url:path}")
@@ -45,8 +45,8 @@ async def article_websocket(websocket: WebSocket, depth: int=2):
     root.parsed = True
     tree = SourceTree(root)
     async for tree in worker.build_tree(tree, depth=depth):
-        await websocket.send_text(f"console.log('got tree: {tree}')")
-        await websocket.send_text(f"window.tree = {json.dumps(tree)}")
+        await websocket.send_text("console.log('got tree')")
+        await websocket.send_text(f"updateMermaid('{tree.compose_mermaid(escape=True)}')")
 
     while True:
         data = await websocket.receive_text()
