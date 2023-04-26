@@ -1,8 +1,9 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
+from datetime import datetime
 import hashlib
 from textwrap import indent
-from typing import Union
+from typing import Optional, Union
 from urllib.parse import urlunparse, urlparse
 
 from bson import ObjectId
@@ -35,6 +36,7 @@ class Article:
     title: str
     authors: list[str]
     links: list[str]
+    published: Optional[str] = None
     text: str = ''
 
     @property
@@ -104,13 +106,16 @@ class SourceNode(Article):
     depth: int
     parsed: bool = False
     status: str = 'cool dragon'
-    transientId: str = ObjectId()
+    transientId: str = None
+
+    def __post_init__(self):
+        self.transientId = str(ObjectId())
 
     def make_mermaid(self) -> str:
         """ generates a string to place inside mermaid node representing this SourceNode """
         content = "<br/>".join([
-            self.title,
-            f'<a href="{self.url}">{self.domain}</a>',
+            '"'+self.title+'"',
+            f"<a href='{self.url}'>{self.domain}</a>",
             self.status,
             f'hits: {self.hits}',
         ])
@@ -156,8 +161,13 @@ class SourceTree:
     def __post_init__(self):
         self.nodes.append(self.root)
 
+    @property
+    def node_urls(self) -> set:
+        return {node.url for node in self.nodes}
+
     def add_node(self, node: SourceNode):
-        self.nodes.append(node)
+        if node.url not in self.node_urls:
+            self.nodes.append(node)
 
     def add_link(self, link: Link):
         self.links.append(link)
@@ -182,7 +192,7 @@ class SourceTree:
 
     def compose_mermaid(self, escape: bool=False):
         indentation = ' ' * 2
-        depth_dict = defaultdict(list)
+        depth_dict: dict[int, list[SourceNode]] = defaultdict(list)
         for node in self.nodes:
             depth_dict[node.depth].append(node)
         subgraphs = []
@@ -192,7 +202,6 @@ class SourceTree:
                 indent("\n".join(node.make_mermaid() for node in nodes), indentation),
                 'end'
             ]))
-        logger.info(f'{self.links=}')
         url_to_transient_map = {node.url: node.transientId for node in self.nodes}
         content = "\n".join([
             'graph LR',
@@ -203,7 +212,9 @@ class SourceTree:
         with open('mermaid.txt', 'w') as f:
             f.write(content)
         if escape:
-            return content.replace('\n', '<br>').replace('"', '').replace("'", '')
+            content = content.replace('\n', '<br>').replace('`', "'")
+            stripped = (c for c in content if 0 < ord(c) < 127)
+            return ''.join(stripped)
         else:
             return content
 

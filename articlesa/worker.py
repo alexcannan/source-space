@@ -32,8 +32,8 @@ class ArticleWorker:
         logger.info(f"starting {self.n_workers} workers")
         self.tasks.append(asyncio.create_task(self.run()))
 
-    async def shutdown(self):
-        if not self.queue.empty():
+    async def shutdown(self, force: bool=True):
+        if not force and not self.queue.empty():
             logger.info(f"shutting down workers. {self.queue.qsize()} articles left in queue.")
             pbar = tqdm(total=self.queue.qsize(), desc="article queue"); s0 = self.queue.qsize()
             while not self.queue.empty():
@@ -58,7 +58,8 @@ class ArticleWorker:
                             title=nparticle.title,
                             text=nparticle.text,
                             authors=nparticle.authors,
-                            links=nparticle.links,)
+                            links=nparticle.links,
+                            published=nparticle.publish_date,)
         if (dbarticle := await self.get_article(url)):
             updated_data = {**article.to_mongo_dict(), "updatedAt": self._get_time()}; del updated_data['url']
             result = await self.articles.update_one({'_id': dbarticle['_id']}, {'$set': updated_data})

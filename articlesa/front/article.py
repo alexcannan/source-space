@@ -45,7 +45,7 @@ async def article_websocket(websocket: WebSocket, depth: int=2):
     tree = SourceTree(root)
     async for tree in worker.build_tree(tree, depth=depth):
         await websocket.send_text("console.log('got tree')")
-        await websocket.send_text(f"updateMermaid('{tree.compose_mermaid(escape=True)}')")
+        await websocket.send_text(f"updateMermaid(`{tree.compose_mermaid(escape=True)}`)")
     await websocket.send_text("console.log('done building tree')")
 
     while True:
