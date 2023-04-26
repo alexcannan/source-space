@@ -105,7 +105,7 @@ class Article:
 class SourceNode(Article):
     depth: int
     parsed: bool = False
-    status: str = 'cool dragon'
+    status: str = '🐲'
     transientId: str = None
 
     def __post_init__(self):
@@ -116,13 +116,13 @@ class SourceNode(Article):
         content = "<br/>".join([
             '"'+self.title+'"',
             f"<a href='{self.url}'>{self.domain}</a>",
-            self.status,
-            f'hits: {self.hits}',
+            f"depth: {self.depth}",
+            f'parsed: {self.parsed}',
         ])
         return f'{self.transientId}[{content}]'
 
     @classmethod
-    def from_article(cls, article: Article, depth: int) -> 'SourceNode':
+    def from_article(cls, article: Article, depth: int, **kwargs) -> 'SourceNode':
         return cls(
             url=article.url,
             title=article.title,
@@ -130,12 +130,13 @@ class SourceNode(Article):
             authors=article.authors,
             links=article.links,
             depth=depth,
+            **kwargs,
         )
 
     @classmethod
-    def from_db_article(cls, dbarticle: dict, depth: int) -> 'SourceNode':
+    def from_db_article(cls, dbarticle: dict, depth: int, **kwargs) -> 'SourceNode':
         article = Article.from_mongo_dict(dbarticle)
-        return cls.from_article(article, depth)
+        return cls.from_article(article, depth, **kwargs)
 
 
 @dataclass
@@ -173,12 +174,16 @@ class SourceTree:
         self.links.append(link)
 
     def update_node(self, node: SourceNode):
-        # update Article information but leave SourceNode information
+        """
+        this method is confusing--when an unparsed node is processed by the worker, we then read
+        the result from the db and update the node in the tree, keeping some of the original data,
+        namely depth, status, and transientId.
+        """
         for i, n in enumerate(self.nodes):
             if n.url == node.url:
-                parsed, status, transientId = n.parsed, n.status, n.transientId
+                depth, status, transientId = n.depth, n.status, n.transientId
                 self.nodes[i] = node
-                self.nodes[i].parsed = parsed
+                self.nodes[i].depth = depth
                 self.nodes[i].status = status
                 self.nodes[i].transientId = transientId
                 return

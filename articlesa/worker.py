@@ -109,10 +109,12 @@ class ArticleWorker:
 
     async def build_tree(self, tree: SourceTree, depth: int):
         """ build a tree of articles from a source """
+        logger.info(f"building tree of depth {depth}")
         if depth == 0:
             yield tree
         assert len(tree.nodes) == 1, 'tree must have exactly one root node, resumption not implemented'
         while not tree.is_complete(depth):
+            logger.info(f"tree depth {depth} not complete, building")
             # create unprocessed nodes from processed node links
             for node in tree.nodes:
                 if not node.parsed and node.title:  # if processed by worker but not parsed by tree
@@ -135,7 +137,7 @@ class ArticleWorker:
             dbarticles = await asyncio.gather(*[self.get_article(node.url) for node in unparsed_nodes])
             for dbarticle in dbarticles:
                 if dbarticle:
-                    article = SourceNode.from_db_article(dbarticle, depth=-1)  # dummy depth, update_node won't change
+                    article = SourceNode.from_db_article(dbarticle, depth=-1, parsed=True, status='🗿')  # dummy depth, update_node won't change
                     tree.update_node(article)
             yield tree
         yield tree

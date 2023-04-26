@@ -41,7 +41,7 @@ async def article_websocket(websocket: WebSocket, depth: int=2):
 
     cleaned_url = await worker.clean_and_add_article(article_url)
     rootarticle = await worker.wait_for_article(cleaned_url)
-    root = SourceNode.from_db_article(rootarticle, depth=0)
+    root = SourceNode.from_db_article(rootarticle, depth=0, parsed=False, status='🌱')
     tree = SourceTree(root)
     async for tree in worker.build_tree(tree, depth=depth):
         await websocket.send_text("console.log('got tree')")
