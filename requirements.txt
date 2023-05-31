@@ -8,3 +8,5 @@ jinja2
 uvicorn[standard]
 yarl
 pytest
+sse-starlette
+jinja2
