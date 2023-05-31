@@ -1,6 +1,5 @@
 networkx
 matplotlib
-pygraphviz
 loguru
 # newspaper  (currently in git:alexcannan/newspaper)
 fastapi

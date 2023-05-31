@@ -7,61 +7,38 @@ source setup.sh
 python3 -m articlesa.front.article
 ```
 
-
-## Data Structures
-
-```mermaid
----
-title: Article Source Aggregator
----
-classDiagram
-    Article <|--|> SourceNode : backend/frontend
-    class Article{
-        mongoId: ObjectId
-        url: str
-        urlHash: b64 str
-        text: str
-        hits: int
-        allParents: set[Article]
-        allChildren: set[Article]
-        fromUrl(url: str): Article
-    }
-    class SourceNode{
-        transientId: uuid?
-        depth: int
-        status: str
-    }
-    class Link{
-        transientId: uuid?
-        internal: bool
-        from: SourceNode
-        to: SourceNode
-    }
-    SourceTree <|-- SourceNode : child
-    SourceTree <|-- Link : child
-    class SourceTree{
-        root: SourceNode
-        nodes: list[SourceNode]
-        links: list[Link]
-        composeMermaid(): str
-    }
-```
-
-## Displaying the tree
-
-SourceNodes are nodes on a graph. Links are edges on a graph.
-
-SourceTree goes left to right, depth levels are TB subgraphs.
+## architecture
 
 ```mermaid
-graph LR
-    A[Article] --> B[SourceNode]
-    B --> C[SourceTree]
-    C --> D[SourceNode]
-    C --> E[Link]
-    D --> F[SourceNode]
-    E --> G[SourceNode]
-    E --> H[SourceNode]
+sequenceDiagram
+    participant client
+    participant server
+    participant db
+    participant worker
+    participant web
+    client ->> server: GET /a/{article:path}
+    server ->> server: clean url
+    server ->> db: check if article exists and is not old
+    alt article exists and is not old
+        db -->> server: retrieve article
+    else article doesn't exist or is old
+        db -->> server: article doesn't exist
+        server ->> worker: send article to worker
+        worker ->> web: GET article
+        web ->> worker: return article and parse
+        worker ->> db: save article
+        server -->> db: poll for article
+        db -->> server: retrieve article
+    end
+    server ->> client: send article node event for rendering
+    alt depth reached
+        server ->> client: end stream
+    else depth not reached
+        server ->> server: parse links from last article node
+        server ->> server: GOTO clean url
+    end
+
+
 ```
 
 ### URLs to test
