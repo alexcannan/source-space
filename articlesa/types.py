@@ -1,5 +1,6 @@
 from datetime import datetime
 from enum import Enum
+import hashlib
 from typing import Any, Optional, Union
 from urllib.parse import urlparse
 
@@ -19,6 +20,11 @@ def relative_to_absolute_url(relative_url: str, base_url: str) -> str:
     """ given a relative url and a base url, return an absolute url """
     assert relative_url.startswith('/')
     return urlparse(base_url)._replace(path=relative_url, query='', fragment='').geturl()
+
+
+def url_to_hash(url: str) -> str:
+    """ build hash unique to url """
+    return hashlib.md5(url.encode()).hexdigest()
 
 
 def read_blacklist() -> set:
