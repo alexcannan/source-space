@@ -6,11 +6,10 @@ the links parsed from the article should go through a HEAD request to make sure 
 not redirect links.
 """
 
-import asyncio
 from datetime import datetime
+from typing import Optional
 
-import aiohttp
-import redis
+from aiohttp import ClientSession
 from newspaper import Article
 
 from articlesa.logger import logger
@@ -18,76 +17,61 @@ from articlesa.types import ParsedArticle
 from articlesa.worker.celery import app
 
 
+session: Optional[ClientSession] = None
+
+
+async def get_session_():
+    global session
+    if not session:
+        session = await ClientSession().__aenter__()
+    return session
+
+
 async def check_redirect(url, session):
+    logger.debug(f"checking redirect for url {url}")
     async with session.head(url, allow_redirects=True) as response:
         return response.url
 
 
 async def download_article(url, session):
+    logger.debug(f"downloading article from url {url}")
     async with session.get(url) as response:
         if response.status == 200:
             return await response.text()
 
 
-@app.task
-async def parse_article(url, session) -> ParsedArticle:
+@app.task(name="parse_article")
+async def parse_article(url) -> dict:
+    """ given a url, parse the article and return a dict like ParsedArticle """
+    session = await get_session_()
+
     # Check for redirects
     final_url = await check_redirect(url, session)
+    if str(final_url) != url:
+        logger.info(f"redirected from {url} to {final_url}")
 
     # Download the article
     article_html = await download_article(final_url, session)
 
     # Parse the article using forked newspaper3k with .links property
-    article = Article(final_url)
+    article = Article(str(final_url))
+    article.download_state = 2  # set to success
     article.set_html(article_html)
     article.parse()
 
     # Create a ParsedArticle object
     parsed_article = ParsedArticle(
-        url=final_url,
+        url=str(final_url),
         title=article.title,
         text=article.text,
         authors=article.authors,
         links=article.links,
         published=str(article.publish_date),
         parsedAtUtc=datetime.utcnow()
-    )
+    ).dict()
 
     return parsed_article
 
 
-async def worker():
-    logger.info("spawned worker")
-    redis_client = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
-    async with aiohttp.ClientSession() as session:
-        # TODO: proxy support
-        while True:
-            # Read tasks from the Redis queue
-            task = redis_client.lpop('article_tasks')
-            logger.debug(f"got task: {task}")
-            if task is None:
-                # No more tasks, wait and continue
-                await asyncio.sleep(1)
-                continue
-
-            url = task
-
-            # Parse the article and check links
-            parsed_article = await parse_article(url, session)
-
-            # place the parsed article in the value of the redis key
-            redis_client.set(url, parsed_article.json())
-
-
-# Entry point of the worker
 if __name__ == "__main__":
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--n-workers", type=int, default=4)
-    args = parser.parse_args()
-
-    async def main():
-        await worker()
-        # asyncio.gather(*[worker() for _ in range(args.n_workers)])
-
-    asyncio.run(main())
+    print("run me with:\ncelery -A articlesa.worker.parse worker -l info")
