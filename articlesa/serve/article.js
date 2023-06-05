@@ -1,36 +1,45 @@
 console.log("hello from js")
 
 
-function connect() {
-  window.ws = new WebSocket((window.location.protocol == 'https:' ? "wss://" : "ws://") + window.location.host + '/ws' + window.location.pathname + window.location.search);
-  console.log(window.ws)
-  ws.onmessage = function(event) {
-      eval(event.data);
+function fetchServerSentEvents(url, onEventReceived) {
+  const eventSource = new EventSource(url);
+
+  eventSource.onmessage = (event) => {
+    const eventData = JSON.parse(event.data);
+    const eventType = eventData.event;
+    const eventDataParsed = eventData.data;
+
+    onEventReceived(eventType, eventDataParsed);
   };
-  ws.onopen = function(event) {
-      window.ws_backoff = 1000;
-      console.log("Websocket connected.");
-  };
-  ws.onclose = function(event) {
-      console.error(event);
-      console.log(`Socket was closed, trying to reconnect in ${window.ws_backoff}ms.`);
-      setTimeout(connect, window.ws_backoff);
-      window.ws_backoff = window.ws_backoff * 2;
+
+  eventSource.onerror = (error) => {
+    console.error('Error occurred while fetching server-sent events:', error);
+    eventSource.close();
   };
 }
 
 
 window.addEventListener('DOMContentLoaded', function() {
-  connect();
-  mermaid.initialize({securityLevel: 'loose'});
+  console.log("dom loaded");
+
+  document.getElementById('sseForm').addEventListener('submit', function(event) {
+    event.preventDefault();
+
+    var url = document.getElementById('urlInput').value;
+
+    fetchServerSentEvents(`/a/${url}`, function(eventType, eventData) {
+      // Perform actions based on the event type
+      console.log("event type", eventType)
+      if (eventType === 'event_type_1') {
+        // Handle event type 1
+        console.log('Event type 1:', eventData);
+      } else if (eventType === 'event_type_2') {
+        // Handle event type 2
+        console.log('Event type 2:', eventData);
+      } else {
+        // Handle other event types
+        console.log('Unknown event type:', eventType);
+      }
+    });
+  });
 });
-
-
-async function updateMermaid(content) {
-  console.log(content);
-  var el = document.getElementById("treegraph");
-  el.innerHTML = content;
-  // we replace newlines with <br> when sending through websocket, change them back here
-  content = content.replace(/<br>/g, '\n');
-  el.innerHTML = await mermaid.render('idk', content);
-}

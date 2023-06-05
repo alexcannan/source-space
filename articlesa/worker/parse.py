@@ -9,16 +9,18 @@ not redirect links.
 import asyncio
 from datetime import datetime
 from typing import Optional
+from urllib.parse import urlparse
 
 from aiohttp import ClientSession
 from newspaper import Article
 
 from articlesa.logger import logger
-from articlesa.types import ParsedArticle, relative_to_absolute_url
+from articlesa.types import ParsedArticle, relative_to_absolute_url, read_blacklist
 from articlesa.worker.celery import app
 
 
 session: Optional[ClientSession] = None
+blacklist = read_blacklist()
 
 
 async def get_session_():
@@ -75,6 +77,12 @@ async def parse_article(url) -> dict:
 
     # redirect links if needed
     article.links = await asyncio.gather(*[check_redirect(link, session) for link in article.links])
+
+    # filter links by blacklist
+    article.links = [link for link in article.links if urlparse(link).netloc not in blacklist]
+
+    # deduplicate links
+    article.links = list(set(article.links))
 
     # TODO: filter author list by if NER thinks it's a person
 

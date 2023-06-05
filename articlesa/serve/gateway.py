@@ -10,39 +10,44 @@ from fastapi import APIRouter, Request
 from sse_starlette.sse import EventSourceResponse, ServerSentEvent
 
 from articlesa.logger import logger
-from articlesa.types import StreamEvent, SSE
+from articlesa.types import ParsedArticle, StreamEvent, SSE
+from articlesa.worker.parse import parse_article
 
 
 router = APIRouter()
 
 
-async def _test_task():
-    await asyncio.sleep(random.normalvariate(5, 1))
-    return {"secret_message": f"hello world {random.randint(0, 100)}"}
-
-
-async def process_article_task(article_url: str, depth: int):
-    """
-    generates a task that tries to look up an article on neo4j. If it doesn't exist,
-    posts a request to the redis queue to scrape the article and awaits the result.
-    """
-    pass
-
-
 async def _article_stream(article_url: str, depth: int):
     """
-    generator function for article parsing
+    generator function for article parsing; yields SSE
     """
     tasks = set()
+    n_tasks = 0
+
+    async def _add_url_task(url: str, depth: int):
+        task = parse_article.delay(url)
+        return task.get()
+
     yield SSE(data="begin", id="begin", event=StreamEvent.STREAM_BEGIN).dict()
-    for i in range(10):
-        task = asyncio.create_task(_test_task())
-        tasks.add(task)
-        yield SSE(data=None, id=task.get_name(), event=StreamEvent.NODE_PROCESSING).dict()
+    task = asyncio.create_task(_add_url_task(article_url, depth))
+    task.set_name(f"{n_tasks}/{0}/{article_url}")  # i/depth/url
+    tasks.add(task)
+    n_tasks += 1
+    yield SSE(data=None, id=task.get_name(), event=StreamEvent.NODE_PROCESSING).dict()
+
     while tasks:
         done, tasks = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
         for task in done:
-            yield SSE(data=task.result(), id=task.get_name(), event=StreamEvent.NODE_RENDER).dict()
+            try:
+                task.exception()  # raise exception if there is one
+                _, depth, _ = task.get_name().split('/', maxsplit=2)
+                data = ParsedArticle.parse_obj(task.result()).dict()
+                # TODO: only pass in fields relevant for rendering
+                del data['text']
+                yield SSE(data={**data, "depth": depth}, id=task.get_name(), event=StreamEvent.NODE_RENDER).dict()
+            except Exception as e:
+                yield SSE(data=e, id=task.get_name(), event=StreamEvent.NODE_FAILURE).dict()
+
     yield SSE(data="done", id="done", event=StreamEvent.STREAM_END).dict()
 
 

@@ -21,6 +21,16 @@ def relative_to_absolute_url(relative_url: str, base_url: str) -> str:
     return urlparse(base_url)._replace(path=relative_url, query='', fragment='').geturl()
 
 
+def read_blacklist() -> set:
+    """ blacklist of netlocs to ignore """
+    with open('blacklist.txt', 'r') as f:
+        blacklist = set()
+        for line in f:
+            if (sline := line.strip()):
+                blacklist.add(sline)
+        return blacklist
+
+
 class ParsedArticle(BaseModel):
     """ object returned from parse worker, to be stored in redis """
     url: str
@@ -37,6 +47,7 @@ class StreamEvent(Enum):
     STREAM_BEGIN = "stream_begin"
     NODE_PROCESSING = "node_processing"
     NODE_RENDER = "node_render"
+    NODE_FAILURE = "node_failure"
     STREAM_END = "stream_end"
 
 

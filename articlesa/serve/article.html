@@ -1,23 +1,27 @@
 <html>
 <head>
 <meta charset="utf-8" />
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🦦</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🖇️</text></svg>">
 <link href='https://fonts.googleapis.com/css?family=Manrope' rel='stylesheet'>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
 <title>{{ title }}</title>
-<meta property="og:title" content="Article Source Aggregator"/>
+<meta property="og:title" content="SOURCESPACE"/>
 <meta property="og:description" content="Article Source Aggregator"/>
 <base target="_blank">
 <style>
 {% include 'style.css' %}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/mermaid@9/dist/mermaid.js"></script>
 <script>
 {% include 'article.js' %}
 </script>
 </head>
 <body>
-  <h2 id="articleName">Analysis of {{ url }}</h2>
-  <pre id="treegraph" class="mermaid"></pre>
+  <h2 id="articleName">Let's get analyzing!</h2>
+  <form id="sseForm">
+    <label for="urlInput">URL to parse</label>
+    <input type="text" id="urlInput" required>
+    <br>
+    <button type="submit">Get Source</button>
+  </form>
 </body>
 </html>
