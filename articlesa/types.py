@@ -40,6 +40,7 @@ def read_blacklist() -> set:
 class PlaceholderArticle(BaseModel):
     """ objects for when a source is found but it's still processing """
     urlhash: str
+    depth: int
     parent: Optional[str]
 
 

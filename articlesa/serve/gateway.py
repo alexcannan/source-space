@@ -40,7 +40,7 @@ async def _article_stream(article_url: str, depth: int):
     task.set_name(f"{n_tasks}/{0}/{article_url}")  # i/depth/url
     tasks.add(task)
     n_tasks += 1
-    placeholder_node = PlaceholderArticle(urlhash=url_to_hash(article_url), parent=None)
+    placeholder_node = PlaceholderArticle(urlhash=url_to_hash(article_url), depth=0, parent=None)
     yield build_event(data=placeholder_node.json(),
                       id=task.get_name(),
                       event=StreamEvent.NODE_PROCESSING)
