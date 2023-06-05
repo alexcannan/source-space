@@ -6,6 +6,7 @@ the links parsed from the article should go through a HEAD request to make sure 
 not redirect links.
 """
 
+import asyncio
 from datetime import datetime
 from typing import Optional
 
@@ -13,7 +14,7 @@ from aiohttp import ClientSession
 from newspaper import Article
 
 from articlesa.logger import logger
-from articlesa.types import ParsedArticle
+from articlesa.types import ParsedArticle, relative_to_absolute_url
 from articlesa.worker.celery import app
 
 
@@ -27,17 +28,22 @@ async def get_session_():
     return session
 
 
-async def check_redirect(url, session):
+class MissingArticleText(Exception):
+    pass
+
+
+async def check_redirect(url, session) -> str:
     logger.debug(f"checking redirect for url {url}")
     async with session.head(url, allow_redirects=True) as response:
-        return response.url
+        response.raise_for_status()
+        return str(response.url)
 
 
 async def download_article(url, session):
     logger.debug(f"downloading article from url {url}")
     async with session.get(url) as response:
-        if response.status == 200:
-            return await response.text()
+        response.raise_for_status()
+        return await response.text()
 
 
 @app.task(name="parse_article")
@@ -58,6 +64,19 @@ async def parse_article(url) -> dict:
     article.download_state = 2  # set to success
     article.set_html(article_html)
     article.parse()
+
+    if not article.text:
+        raise MissingArticleText()
+
+    # make relative links absolute
+    for i, link in enumerate(article.links):
+        if link.startswith('/'):
+            article.links[i] = relative_to_absolute_url(link, str(final_url))
+
+    # redirect links if needed
+    article.links = await asyncio.gather(*[check_redirect(link, session) for link in article.links])
+
+    # TODO: filter author list by if NER thinks it's a person
 
     # Create a ParsedArticle object
     parsed_article = ParsedArticle(

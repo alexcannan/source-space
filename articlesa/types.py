@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 from typing import Any, Union
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import urlparse
 
 from pydantic import BaseModel
 from yarl import URL
@@ -12,7 +12,13 @@ def clean_url(url: Union[str, URL]) -> str:
     """ parse article urls, remove query strings and fragments """
     _parsed = urlparse(str(url))
     _parsed = _parsed._replace(query='', fragment='')
-    return urlunparse(_parsed)
+    return _parsed.geturl()
+
+
+def relative_to_absolute_url(relative_url: str, base_url: str) -> str:
+    """ given a relative url and a base url, return an absolute url """
+    assert relative_url.startswith('/')
+    return urlparse(base_url)._replace(path=relative_url, query='', fragment='').geturl()
 
 
 class ParsedArticle(BaseModel):
