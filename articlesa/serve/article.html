@@ -12,6 +12,9 @@
 {% include 'style.css' %}
 </style>
 <script>
+{% include 'cytoscape.min.js' %}
+</script>
+<script>
 {% include 'article.js' %}
 </script>
 </head>
@@ -23,5 +26,6 @@
     <br>
     <button type="submit">Get Source</button>
   </form>
+  <div id="graph"></div>
 </body>
 </html>

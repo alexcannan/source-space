@@ -1,10 +1,10 @@
 from datetime import datetime
 from enum import Enum
 import hashlib
-from typing import Any, Optional, Union
+from typing import Optional, Union
 from urllib.parse import urlparse
 
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, validator, Json
 from yarl import URL
 
 
@@ -37,8 +37,14 @@ def read_blacklist() -> set:
         return blacklist
 
 
+class PlaceholderArticle(BaseModel):
+    """ objects for when a source is found but it's still processing """
+    urlhash: str
+    parent: Optional[str]
+
+
 class ParsedArticle(BaseModel):
-    """ object returned from parse worker, to be stored in redis """
+    """ object returned from parse worker, to be stored to & retrieved from redis """
     url: str
     title: str
     text: str
@@ -46,6 +52,8 @@ class ParsedArticle(BaseModel):
     links: list
     published: str
     parsedAtUtc: datetime
+    urlhash: Optional[str] = None
+    depth: Optional[int] = None
 
 
 class StreamEvent(Enum):
@@ -71,7 +79,7 @@ class SSE(BaseModel):
         reconnect. This must be an integer, specifying the reconnection time in
         milliseconds. If a non-integer value is specified, the field is ignored.
     """
-    data: Optional[dict]
+    data: Optional[Json]
     id: str
     event: str  # expects StreamEvent value
     retry: int = 15000  # ms

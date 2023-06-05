@@ -4,6 +4,7 @@ sending server-sent events to the client while an article is being processed.
 """
 
 import asyncio
+import json
 import random
 from typing import Optional
 
@@ -11,7 +12,7 @@ from fastapi import APIRouter, Request
 from sse_starlette.sse import EventSourceResponse, ServerSentEvent
 
 from articlesa.logger import logger
-from articlesa.types import ParsedArticle, StreamEvent, SSE, clean_url, url_to_hash
+from articlesa.types import ParsedArticle, StreamEvent, SSE, clean_url, url_to_hash, PlaceholderArticle
 from articlesa.worker.parse import parse_article
 
 
@@ -31,15 +32,16 @@ async def _article_stream(article_url: str, depth: int):
 
     def build_event(data: Optional[dict], id: str, event: StreamEvent):
         if not data:
-            data = {}
-        return SSE(data=data, id=id, event=event.value).dict()
+            data = dict()
+        return SSE(data=json.dumps(data), id=id, event=event.value).dict()
 
     yield build_event(data=None, id="begin", event=StreamEvent.STREAM_BEGIN)
     task = asyncio.create_task(_add_url_task(article_url, depth))
     task.set_name(f"{n_tasks}/{0}/{article_url}")  # i/depth/url
     tasks.add(task)
     n_tasks += 1
-    yield build_event(data={"urlhash": url_to_hash(article_url), "parent": None},
+    placeholder_node = PlaceholderArticle(urlhash=url_to_hash(article_url), parent=None)
+    yield build_event(data=placeholder_node.json(),
                       id=task.get_name(),
                       event=StreamEvent.NODE_PROCESSING)
 
@@ -49,15 +51,19 @@ async def _article_stream(article_url: str, depth: int):
             try:
                 task.exception()  # raise exception if there is one
                 _, depth, _ = task.get_name().split('/', maxsplit=2)
-                data = ParsedArticle.parse_obj(task.result()).dict()
+                data = ParsedArticle.parse_obj(task.result())
+                data.urlhash = url_to_hash(data.url)
+                data.depth = int(depth)
                 # TODO: only pass in fields relevant for rendering
-                del data['text']
-                yield build_event(data={**data, "depth": depth, "urlhash": url_to_hash(data['url'])},
+                del data.text
+                yield build_event(data=data.json(),
                                   id=task.get_name(),
                                   event=StreamEvent.NODE_RENDER)
             except Exception as e:
                 logger.opt(exception=e).error(f"error in task {task.get_name()}")
-                yield build_event(data={"error": e}, id=task.get_name(), event=StreamEvent.NODE_FAILURE)
+                yield build_event(data={"error": f"{e.__class__.__name__} {e}"},
+                                  id=task.get_name(),
+                                  event=StreamEvent.NODE_FAILURE)
 
     yield build_event(data=None, id="done", event=StreamEvent.STREAM_END)
 
