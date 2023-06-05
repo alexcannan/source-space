@@ -8,8 +8,36 @@ services:
       - 7654:7654
     depends_on:
       - redis
+      - neo4j
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python -m articlesa.worker.parse
+    depends_on:
+      - redis
 
   redis:
-    image: redis
+    image: redis/redis-stack:latest
     ports:
       - 6379:6379
+      - 8001:8001
+    volumes:
+      - redis-data:/data
+
+  neo4j:
+    image: neo4j
+    environment:
+      - NEO4J_dbms_security_auth__enabled=false
+    ports:
+      - 7474:7474
+      - 7687:7687
+    volumes:
+      - neo4j-data:/data
+      - neo4j-logs:/logs
+
+volumes:
+  redis-data:
+  neo4j-data:
+  neo4j-logs:

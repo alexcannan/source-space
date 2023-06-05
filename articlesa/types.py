@@ -1,10 +1,33 @@
+from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, Union
+from urllib.parse import urlparse, urlunparse
 
 from pydantic import BaseModel
+from yarl import URL
+
+
+
+def clean_url(url: Union[str, URL]) -> str:
+    """ parse article urls, remove query strings and fragments """
+    _parsed = urlparse(str(url))
+    _parsed = _parsed._replace(query='', fragment='')
+    return urlunparse(_parsed)
+
+
+class ParsedArticle(BaseModel):
+    """ object returned from parse worker, to be stored in redis """
+    url: str
+    title: str
+    text: str
+    authors: list
+    links: list
+    published: str
+    parsedAtUtc: datetime
 
 
 class StreamEvent(Enum):
+    """ SSE event types """
     STREAM_BEGIN = "stream_begin"
     NODE_PROCESSING = "node_processing"
     NODE_RENDER = "node_render"

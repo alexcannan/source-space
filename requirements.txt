@@ -10,3 +10,7 @@ yarl
 pytest
 sse-starlette
 jinja2
+py2neo
+redis
+aiohttp
+celery

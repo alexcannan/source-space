@@ -21,22 +21,28 @@ async def _test_task():
     return {"secret_message": f"hello world {random.randint(0, 100)}"}
 
 
+async def process_article_task(article_url: str, depth: int):
+    """
+    generates a task that tries to look up an article on neo4j. If it doesn't exist,
+    posts a request to the redis queue to scrape the article and awaits the result.
+    """
+    pass
+
+
 async def _article_stream(article_url: str, depth: int):
     """
     generator function for article parsing
     """
-    stream_tasks = set()
+    tasks = set()
     yield SSE(data="begin", id="begin", event=StreamEvent.STREAM_BEGIN).dict()
     for i in range(10):
         task = asyncio.create_task(_test_task())
-        stream_tasks.add(task)
-        task.add_done_callback(lambda x: logger.info(f"task {x} done"))
+        tasks.add(task)
         yield SSE(data=None, id=task.get_name(), event=StreamEvent.NODE_PROCESSING).dict()
-    while stream_tasks:
-        done, pending = await asyncio.wait(stream_tasks, return_when=asyncio.FIRST_COMPLETED)
+    while tasks:
+        done, tasks = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
         for task in done:
             yield SSE(data=task.result(), id=task.get_name(), event=StreamEvent.NODE_RENDER).dict()
-            stream_tasks.remove(task)
     yield SSE(data="done", id="done", event=StreamEvent.STREAM_END).dict()
 
 
