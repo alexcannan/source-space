@@ -5,6 +5,7 @@ sending server-sent events to the client while an article is being processed.
 
 import asyncio
 import random
+from typing import Optional
 
 from fastapi import APIRouter, Request
 from sse_starlette.sse import EventSourceResponse, ServerSentEvent
@@ -28,12 +29,15 @@ async def _article_stream(article_url: str, depth: int):
         task = parse_article.delay(url)
         return task.get()
 
-    yield SSE(data="begin", id="begin", event=StreamEvent.STREAM_BEGIN).dict()
+    def build_event(data: Optional[dict], id: str, event: StreamEvent):
+        return SSE(data=data, id=id, event=event.value).dict()
+
+    yield build_event(data=None, id="begin", event=StreamEvent.STREAM_BEGIN)
     task = asyncio.create_task(_add_url_task(article_url, depth))
     task.set_name(f"{n_tasks}/{0}/{article_url}")  # i/depth/url
     tasks.add(task)
     n_tasks += 1
-    yield SSE(data=None, id=task.get_name(), event=StreamEvent.NODE_PROCESSING).dict()
+    yield build_event(data=None, id=task.get_name(), event=StreamEvent.NODE_PROCESSING)
 
     while tasks:
         done, tasks = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
@@ -44,11 +48,12 @@ async def _article_stream(article_url: str, depth: int):
                 data = ParsedArticle.parse_obj(task.result()).dict()
                 # TODO: only pass in fields relevant for rendering
                 del data['text']
-                yield SSE(data={**data, "depth": depth}, id=task.get_name(), event=StreamEvent.NODE_RENDER).dict()
+                yield build_event(data={**data, "depth": depth}, id=task.get_name(), event=StreamEvent.NODE_RENDER)
             except Exception as e:
-                yield SSE(data=e, id=task.get_name(), event=StreamEvent.NODE_FAILURE).dict()
+                logger.opt(exception=e).error(f"error in task {task.get_name()}")
+                yield build_event(data={"error": e}, id=task.get_name(), event=StreamEvent.NODE_FAILURE)
 
-    yield SSE(data="done", id="done", event=StreamEvent.STREAM_END).dict()
+    yield build_event(data=None, id="done", event=StreamEvent.STREAM_END)
 
 
 @router.get("/a/{article_url:path}")

@@ -6,6 +6,9 @@ services:
       dockerfile: Dockerfile
     ports:
       - 7654:7654
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
     depends_on:
       - redis
       - neo4j

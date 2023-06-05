@@ -1,9 +1,9 @@
 from datetime import datetime
 from enum import Enum
-from typing import Any, Union
+from typing import Any, Optional, Union
 from urllib.parse import urlparse
 
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 from yarl import URL
 
 
@@ -65,7 +65,12 @@ class SSE(BaseModel):
         reconnect. This must be an integer, specifying the reconnection time in
         milliseconds. If a non-integer value is specified, the field is ignored.
     """
-    data: Any
+    data: Optional[dict]
     id: str
-    event: StreamEvent
+    event: str  # expects StreamEvent value
     retry: int = 15000  # ms
+
+    @validator('event')
+    def event_must_be_valid(cls, v):
+        assert v in [e.value for e in StreamEvent]
+        return v

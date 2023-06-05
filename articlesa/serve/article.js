@@ -1,22 +1,31 @@
 console.log("hello from js")
 
 
-function fetchServerSentEvents(url, onEventReceived) {
-  const eventSource = new EventSource(url);
+function fetchServerSentEvents(url) {
+  const sse = new EventSource(`/a/${url}`);
 
-  eventSource.onmessage = (event) => {
-    const eventData = JSON.parse(event.data);
-    const eventType = eventData.event;
-    const eventDataParsed = eventData.data;
+  // see articlesa.types.StreamEvent for event types
 
-    onEventReceived(eventType, eventDataParsed);
-  };
+  sse.addEventListener("stream_begin", (e) => {
+    console.log("stream beginning");
+  });
 
-  eventSource.onerror = (error) => {
-    console.error('Error occurred while fetching server-sent events:', error);
-    eventSource.close();
-  };
-}
+  sse.addEventListener("node_processing", (e) => {
+    console.log("processing", e.id);
+  });
+
+  sse.addEventListener("node_render", (e) => {
+    console.log(e.data);
+  });
+
+  sse.addEventListener("node_failure", (e) => {
+    console.log("failure", e.id);
+  });
+
+  sse.addEventListener("stream_end", (e) => {
+    console.log("stream ending");
+  } );
+};
 
 
 window.addEventListener('DOMContentLoaded', function() {
