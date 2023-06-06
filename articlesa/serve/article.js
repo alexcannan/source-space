@@ -9,33 +9,45 @@ window.addEventListener('DOMContentLoaded', function() {
   });
 
   let options = {
-    name: 'concentric',
-
-    fit: true, // whether to fit the viewport to the graph
-    padding: 30, // the padding on fit
-    startAngle: 1 / 2 * Math.PI, // where nodes start in radians
-    sweep: undefined, // how many radians should be between the first and last node (defaults to full circle)
-    clockwise: true, // whether the layout should go clockwise (true) or counterclockwise/anticlockwise (false)
-    equidistant: false, // whether levels have an equal radial distance betwen them, may cause bounding box overflow
-    minNodeSpacing: 10, // min spacing between outside of nodes (used for radius adjustment)
-    avoidOverlap: true, // prevents node overlap, may overflow boundingBox if not enough space
-    nodeDimensionsIncludeLabels: false, // Excludes the label when calculating node bounding boxes for the layout algorithm
-    spacingFactor: undefined, // Applies a multiplicative factor (>0) to expand or compress the overall area that the nodes take up
-    concentric: function( node ){ // returns numeric value for each node, placing higher nodes in levels towards the centre
-      return node.data.depth;
-    },
-    levelWidth: function( nodes ){ // the variation of concentric values in each level
-      return nodes.maxDegree() / 4;
-    },
-    animate: true, // whether to transition the node positions
+    name: 'random',
   };
 
-  const layout = cy.layout( options );
   cy.on('add', 'node', _evt => {
+    console.log("got node add event...")
+    var layout = cy.layout({ name: 'cose' });
     layout.run();
   })
 
-  this.window.cy = cy;
+  cy.style()
+  .clear()
+  .selector('node')
+    .style({
+      'background-color': 'gray',
+      'shape': 'round-rectangle',
+      'text-opacity': 0.7,
+    })
+  .selector('node.success')
+    .style({
+      'background-color': 'green',
+      'label': 'data(title)',
+    })
+  .selector('node.failure')
+    .style({
+      'background-color': 'red',
+      'label': 'data(status)',
+    })
+  .selector('edge')
+      .style({
+      'width': 3,
+      'line-color': 'black',
+      'mid-target-arrow-shape': 'triangle',
+      'mid-target-arrow-color': 'black',
+    })
+  .update();
+
+  window.cy = cy;
+
+
 
   function fetchServerSentEvents(url) {
     const sse = new EventSource(url, { });
@@ -51,17 +63,30 @@ window.addEventListener('DOMContentLoaded', function() {
       parsedData = JSON.parse(e.data);
       console.log("parsed", parsedData)
       cy.add({
-        data: { id: parsedData.urlhash, parent: parsedData.parent },
-        position: { x: cy.width() / 2, y: cy.height() / 2 },
+        data: { id: parsedData.urlhash },
       });
+      if (parsedData.parent) {
+        edgeObject = {
+          id: `${parsedData.parent}->${parsedData.urlhash}`,
+          source: parsedData.parent,
+          target: parsedData.urlhash
+        }
+        cy.add({data: edgeObject})
+      }
     });
 
     sse.addEventListener("node_render", (e) => {
       console.log("got data", e.data);  // urlhash; parent; title; url; published;
+      parsedData = JSON.parse(e.data);
+      window.cy.$id(parsedData.urlhash).data(parsedData);
+      window.cy.$id(parsedData.urlhash).addClass('success');
     });
 
     sse.addEventListener("node_failure", (e) => {
-      console.log("failure", e.id);
+      console.log("failure", e.data);
+      parsedData = JSON.parse(e.data);
+      window.cy.$id(parsedData.urlhash).data(parsedData);
+      window.cy.$id(parsedData.urlhash).addClass('failure');
     });
 
     sse.addEventListener("stream_end", (e) => {

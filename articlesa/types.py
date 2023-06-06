@@ -44,6 +44,13 @@ class PlaceholderArticle(BaseModel):
     parent: Optional[str]
 
 
+class ParseFailure(BaseModel):
+    """ object returned from parse worker when parse failed """
+    message: str
+    status: Optional[int] = None
+    urlhash: Optional[str] = None
+
+
 class ParsedArticle(BaseModel):
     """ object returned from parse worker, to be stored to & retrieved from redis """
     url: str
