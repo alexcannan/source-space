@@ -8,6 +8,7 @@ from datetime import datetime
 import json
 import random
 from typing import Optional
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Request
 from sse_starlette.sse import EventSourceResponse, ServerSentEvent
@@ -79,6 +80,7 @@ async def _fake_article_stream(depth=3):
 
     words = ["taco", "shelf", "gator", "iberia", "mongoose", "filthy"]
     netlocs = ["facebook.com", "tacobell.biz", "lissajous.space", "zencastr.com"]
+    netlocs = [f"https://{netloc}" for netloc in netlocs]
 
     yield build_event(data=None, id="begin", event=StreamEvent.STREAM_BEGIN)
 
@@ -109,6 +111,7 @@ async def _fake_article_stream(depth=3):
                         id=generate_hash(),
                         event=StreamEvent.NODE_PROCESSING)
 
+        await asyncio.sleep(random.normalvariate(0.5, 0.1))
         _, depth, _url = (None, placeholder_node.depth, "fake.url")
         if random.random() < 0.9:
             data = ParsedArticle(url=random.choice(netlocs),
@@ -131,6 +134,7 @@ async def _fake_article_stream(depth=3):
             yield build_event(data=data.json(),
                               id=generate_hash(),
                               event=StreamEvent.NODE_FAILURE)
+        await asyncio.sleep(random.normalvariate(0.5, 0.1))
 
     yield build_event(data=None, id="done", event=StreamEvent.STREAM_END)
 

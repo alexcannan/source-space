@@ -6,3 +6,12 @@
     left: 0px;
     z-index: -1;
 }
+
+span.netloc {
+    font-size: 0.8em;
+    color: #999;
+}
+
+span.title {
+    font-size: 1.2em;
+}

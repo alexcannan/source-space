@@ -8,10 +8,6 @@ window.addEventListener('DOMContentLoaded', function() {
     container: document.getElementById('graph'),
   });
 
-  let options = {
-    name: 'random',
-  };
-
   cy.on('add', 'node', _evt => {
     console.log("got node add event...")
     var layout = cy.layout({ name: 'cose' });
@@ -24,21 +20,28 @@ window.addEventListener('DOMContentLoaded', function() {
     .style({
       'background-color': 'gray',
       'shape': 'round-rectangle',
+      'width': 90,
+      'height': 60,
       'text-opacity': 0.7,
+      'text-valign': 'center',
+      'text-halign': 'center',
+      'text-wrap': 'wrap',
+      'opacity': 0.7,
     })
   .selector('node.success')
     .style({
+      'opacity': 0.9,
       'background-color': 'green',
-      'label': 'data(title)',
     })
   .selector('node.failure')
     .style({
+      'opacity': 0.9,
       'background-color': 'red',
-      'label': 'data(status)',
     })
   .selector('edge')
       .style({
       'width': 3,
+      'opacity': 0.9,
       'line-color': 'black',
       'mid-target-arrow-shape': 'triangle',
       'mid-target-arrow-color': 'black',
@@ -47,7 +50,27 @@ window.addEventListener('DOMContentLoaded', function() {
 
   window.cy = cy;
 
+  window.cy.nodeHtmlLabel([
+    {
+      query: 'node', // cytoscape query selector
+      halign: 'center', // title vertical position. Can be 'left',''center, 'right'
+      valign: 'center', // title vertical position. Can be 'top',''center, 'bottom'
+      halignBox: 'center', // title vertical position. Can be 'left',''center, 'right'
+      valignBox: 'center', // title relative box vertical position. Can be 'top',''center, 'bottom'
+      cssClass: '', // any classes will be as attribute of <div> container for every title
+      tpl(data) {
+        // no idea why 3 <br>s and a newline are needed to get the title to show up
+        // TODO: if no title, show loading spinner
+        return `<span class="netloc">${data.netloc}</span><br><br><br>\n<span class="title">${data.title}</span>`;
+      }
+    }
+  ]);
 
+  function getHostname(url) {
+    var a = document.createElement('a');
+    a.href = url;
+    return a.hostname;
+  }
 
   function fetchServerSentEvents(url) {
     const sse = new EventSource(url, { });
@@ -78,6 +101,7 @@ window.addEventListener('DOMContentLoaded', function() {
     sse.addEventListener("node_render", (e) => {
       console.log("got data", e.data);  // urlhash; parent; title; url; published;
       parsedData = JSON.parse(e.data);
+      parsedData.netloc = getHostname(parsedData.url);
       window.cy.$id(parsedData.urlhash).data(parsedData);
       window.cy.$id(parsedData.urlhash).addClass('success');
     });
@@ -85,6 +109,7 @@ window.addEventListener('DOMContentLoaded', function() {
     sse.addEventListener("node_failure", (e) => {
       console.log("failure", e.data);
       parsedData = JSON.parse(e.data);
+      parsedData.netloc = getHostname(parsedData.url);
       window.cy.$id(parsedData.urlhash).data(parsedData);
       window.cy.$id(parsedData.urlhash).addClass('failure');
     });
