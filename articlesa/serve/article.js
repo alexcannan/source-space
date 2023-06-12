@@ -66,7 +66,7 @@ window.addEventListener('DOMContentLoaded', function() {
       tpl(data) {
         // no idea why 3 <br>s and a newline are needed to get the title to show up
         // TODO: if the node is processing, we can display a loading thing here
-        return `<span class="netloc">${data.netloc}</span><br><br><br>\n<span class="title">${data.title}</span>`;
+        return `<span class="netloc">${data.depth}|${data.netloc}</span><br><br><br>\n<span class="title">${data.title}</span>`;
       }
     }
   ]);
