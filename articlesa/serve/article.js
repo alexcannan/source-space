@@ -13,9 +13,9 @@ window.addEventListener('DOMContentLoaded', function() {
     var layout = cy.layout({
       name: 'concentric',
       concentric: function( node ){ // returns numeric value for each node, placing higher nodes in levels towards the centre
-        return 1 - node.data('depth');
+        return 10 - 2*node.data('depth');
         },
-    });
+      });
     layout.run();
   })
 
@@ -66,7 +66,7 @@ window.addEventListener('DOMContentLoaded', function() {
       tpl(data) {
         // no idea why 3 <br>s and a newline are needed to get the title to show up
         // TODO: if the node is processing, we can display a loading thing here
-        return `<span class="netloc">${data.depth}|${data.netloc}</span><br><br><br>\n<span class="title">${data.title}</span>`;
+        return `<span class="netloc">${data.depth}|${data.netloc}</span><br><br><br>\n<span class="title">${data.title}</span><br><a href="${data.url}">⛓</a>`;
       }
     }
   ]);

@@ -29,7 +29,7 @@ def build_event(data: Optional[dict], id: str, event: StreamEvent):
 
 # FOR TESTING
 words = ["taco", "shelf", "gator", "iberia", "mongoose", "filthy"]
-netlocs = ["facebook.com", "tacobell.biz", "lissajous.space", "zencastr.com"]
+netlocs = ["facebook.com", "tacobell.biz", "lissajous.space", "zencastr.com", "hackernews.dev", "source.space"]
 netlocs = [f"https://{netloc}" for netloc in netlocs]  # so <a>.hostname works
 
 def generate_hash():
@@ -46,11 +46,15 @@ async def _article_stream(article_url: str, max_depth: int):
         """ creates and waits for celery task, intended to be wrapped in asyncio.Task """
         # task = parse_article.delay(url)
         # return task.get()
+        random_links = list(random.sample(netlocs, random.randint(1,5)))
+        random_links = [rl+f"/{generate_hash()}" for rl in random_links]
+        if random.random() > 0.9:
+            raise ValueError("error doing things")
         data = ParsedArticle(url=url,
                                 title=" ".join(random.sample(words, 3)).title(),
                                 authors=[],
                                 text="yo?",
-                                links=[generate_hash() for n in range(random.randint(1,5))],
+                                links=random_links,
                                 published="",
                                 parsedAtUtc=datetime.utcnow())
         await asyncio.sleep(random.normalvariate(0.5, 0.1))
@@ -68,11 +72,11 @@ async def _article_stream(article_url: str, max_depth: int):
 
 
     async def _process_completed_task(task):
+        depth, url = task.get_name().split('/', maxsplit=1)
         try:
             task.exception()  # raise exception if there is one
-            depth, _ = task.get_name().split('/', maxsplit=1)
             data = ParsedArticle.parse_obj(task.result())
-            data.urlhash = url_to_hash(data.url)
+            data.urlhash = url_to_hash(url)
             data.depth = int(depth)
             # TODO: only pass in fields relevant for rendering
             del data.text
@@ -86,7 +90,8 @@ async def _article_stream(article_url: str, max_depth: int):
                         yield event
         except Exception as e:
             logger.opt(exception=e).error(f"error in task {task.get_name()}")
-            yield build_event(data={"error": f"{e.__class__.__name__} {e}"},
+            data = ParseFailure(message=str(e), status=420, urlhash=url_to_hash(url))
+            yield build_event(data=data.json(),
                                 id=task.get_name(),
                                 event=StreamEvent.NODE_FAILURE)
 
