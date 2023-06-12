@@ -8,10 +8,21 @@
 }
 
 span.netloc {
-    font-size: 0.8em;
+    font-size: 2vmin;
     color: #999;
+    display: inline-block;
 }
 
 span.title {
-    font-size: 1.2em;
+    font-size: 2vmin;
+    display: inline-block;
+}
+
+body {
+    font-family: 'IntelOne Mono', 'Manrope', 'Helvetica Neue', 'Helvetica', 'Arial', sans-serif;
+}
+
+.nodeinfo {
+    width: 90;
+    height: 60;
 }

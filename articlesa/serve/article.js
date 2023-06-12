@@ -10,7 +10,12 @@ window.addEventListener('DOMContentLoaded', function() {
 
   cy.on('add', 'node', _evt => {
     console.log("got node add event...")
-    var layout = cy.layout({ name: 'cose' });
+    var layout = cy.layout({
+      name: 'concentric',
+      concentric: function( node ){ // returns numeric value for each node, placing higher nodes in levels towards the centre
+        return 1 - node.data('depth');
+        },
+    });
     layout.run();
   })
 
@@ -30,12 +35,12 @@ window.addEventListener('DOMContentLoaded', function() {
     })
   .selector('node.success')
     .style({
-      'opacity': 0.9,
+      'opacity': 1,
       'background-color': 'green',
     })
   .selector('node.failure')
     .style({
-      'opacity': 0.9,
+      'opacity': 1,
       'background-color': 'red',
     })
   .selector('edge')
@@ -57,10 +62,10 @@ window.addEventListener('DOMContentLoaded', function() {
       valign: 'center', // title vertical position. Can be 'top',''center, 'bottom'
       halignBox: 'center', // title vertical position. Can be 'left',''center, 'right'
       valignBox: 'center', // title relative box vertical position. Can be 'top',''center, 'bottom'
-      cssClass: '', // any classes will be as attribute of <div> container for every title
+      cssClass: 'nodeinfo', // any classes will be as attribute of <div> container for every title
       tpl(data) {
         // no idea why 3 <br>s and a newline are needed to get the title to show up
-        // TODO: if no title, show loading spinner
+        // TODO: if the node is processing, we can display a loading thing here
         return `<span class="netloc">${data.netloc}</span><br><br><br>\n<span class="title">${data.title}</span>`;
       }
     }
