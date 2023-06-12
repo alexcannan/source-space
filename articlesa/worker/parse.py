@@ -75,6 +75,9 @@ async def parse_article(url) -> dict:
         if link.startswith('/'):
             article.links[i] = relative_to_absolute_url(link, str(final_url))
 
+    # remove links that don't have a netloc
+    article.links = [link for link in article.links if urlparse(link).netloc]
+
     # redirect links if needed
     article.links = await asyncio.gather(*[check_redirect(link, session) for link in article.links])
 
