@@ -77,19 +77,27 @@ window.addEventListener('DOMContentLoaded', function() {
     return a.hostname;
   }
 
+  var SSERunning = false;
+
   function fetchServerSentEvents(url) {
+    if (SSERunning) {
+      console.log("cool your jets, we're already running");
+      return;
+    }
+
     const sse = new EventSource(url, { });
 
     // see articlesa.types.StreamEvent for event types
 
     sse.addEventListener("stream_begin", (e) => {
       console.log("stream beginning");
+      SSERunning = true;
+      window.cy.elements().remove();  // clear the graph
     });
 
     sse.addEventListener("node_processing", (e) => {
-      console.log("processing", e.data);  // urlhash; parent
+      console.debug("processing", e.data);  // urlhash; parent
       parsedData = JSON.parse(e.data);
-      console.log("parsed", parsedData)
       cy.add({
         data: { id: parsedData.urlhash },
       });
@@ -104,7 +112,7 @@ window.addEventListener('DOMContentLoaded', function() {
     });
 
     sse.addEventListener("node_render", (e) => {
-      console.log("got data", e.data);  // urlhash; parent; title; url; published;
+      console.debug("got data", e.data);  // urlhash; parent; title; url; published;
       parsedData = JSON.parse(e.data);
       parsedData.netloc = getHostname(parsedData.url);
       window.cy.$id(parsedData.urlhash).data(parsedData);
@@ -112,7 +120,7 @@ window.addEventListener('DOMContentLoaded', function() {
     });
 
     sse.addEventListener("node_failure", (e) => {
-      console.log("failure", e.data);
+      console.debug("failure", e.data);
       parsedData = JSON.parse(e.data);
       parsedData.netloc = getHostname(parsedData.url);
       window.cy.$id(parsedData.urlhash).data(parsedData);
@@ -122,6 +130,7 @@ window.addEventListener('DOMContentLoaded', function() {
     sse.addEventListener("stream_end", (e) => {
       console.log("stream ending");
       sse.close();
+      SSERunning = false;
     } );
   };
 
