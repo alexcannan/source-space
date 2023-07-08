@@ -1,3 +1,4 @@
+"""Serve module; collects routers from submodules and creates FastAPI app."""
 from fastapi import FastAPI
 
 from articlesa.serve.client import router as client_router

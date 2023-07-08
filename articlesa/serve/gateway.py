@@ -1,13 +1,12 @@
-"""articlesa.serve.gateway module.
+"""
+articlesa.serve.gateway module.
 
 gateway implements backend functionality for the client. This mainly includes
 sending server-sent events to the client while an article is being processed.
 """
 
 import asyncio
-from datetime import datetime
 import json
-import random
 from typing import AsyncGenerator, Optional
 import uuid
 
@@ -61,6 +60,7 @@ def generate_hash() -> str:
 async def _add_url_task(url: str) -> dict:
     """Create and wait for celery task; intended to be wrapped in asyncio.Task."""
     # TODO(alex): create task output interface for type checking
+    # https://github.com/alexcannan/article-source-aggregator/issues/1
     task = parse_article.delay(url)
     return task.get()
     # random_links = list(random.sample(netlocs, random.randint(1,5)))
@@ -81,7 +81,8 @@ async def _add_url_task(url: str) -> dict:
 async def _article_stream(
     article_url: str, max_depth: int
 ) -> AsyncGenerator[SSE, None]:
-    """Generate server-sent events to signal article parsing progress.
+    """
+    Generate server-sent events to signal article parsing progress.
 
     article_url: url of article to parse
     max_depth: maximum depth to parse to

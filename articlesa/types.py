@@ -1,6 +1,8 @@
+"""Types and common functions for the articlesa worker."""
 from datetime import datetime
 from enum import Enum
 import hashlib
+from pathlib import Path
 from typing import Optional, Union
 from urllib.parse import urlparse
 
@@ -10,26 +12,26 @@ from yarl import URL
 
 
 def clean_url(url: Union[str, URL]) -> str:
-    """ parse article urls, remove query strings and fragments """
+    """ Parse article urls, remove query strings and fragments. """
     _parsed = urlparse(str(url))
     _parsed = _parsed._replace(query='', fragment='')
     return _parsed.geturl()
 
 
 def relative_to_absolute_url(relative_url: str, base_url: str) -> str:
-    """ given a relative url and a base url, return an absolute url """
+    """ Given a relative url and a base url, return an absolute url. """
     assert relative_url.startswith('/')
     return urlparse(base_url)._replace(path=relative_url, query='', fragment='').geturl()
 
 
 def url_to_hash(url: str) -> str:
-    """ build hash unique to url """
-    return hashlib.md5(url.encode()).hexdigest()
+    """ Build hash unique to url. """
+    return hashlib.md5(url.encode()).hexdigest()  # noqa: S324
 
 
 def read_blacklist() -> set:
-    """ blacklist of netlocs to ignore """
-    with open('blacklist.txt', 'r') as f:
+    """ Blacklist of netlocs to ignore. """
+    with Path('blacklist.txt').open('r') as f:
         blacklist = set()
         for line in f:
             if (sline := line.strip()):
@@ -38,21 +40,21 @@ def read_blacklist() -> set:
 
 
 class PlaceholderArticle(BaseModel):
-    """ objects for when a source is found but it's still processing """
+    """ Objects for when a source is found but it's still processing. """
     urlhash: str
     depth: int
     parent: Optional[str]
 
 
 class ParseFailure(BaseModel):
-    """ object returned from parse worker when parse failed """
+    """ Object returned from parse worker when parse failed. """
     message: str
     status: Optional[int] = None
     urlhash: Optional[str] = None
 
 
 class ParsedArticle(BaseModel):
-    """ object returned from parse worker, to be stored to & retrieved from redis """
+    """ Object returned from parse worker, to be stored to & retrieved from redis. """
     url: str
     title: str
     text: str
@@ -65,7 +67,7 @@ class ParsedArticle(BaseModel):
 
 
 class StreamEvent(Enum):
-    """ SSE event types """
+    """ SSE event types. """
     STREAM_BEGIN = "stream_begin"
     NODE_PROCESSING = "node_processing"
     NODE_RENDER = "node_render"
@@ -75,6 +77,8 @@ class StreamEvent(Enum):
 
 class SSE(BaseModel):
     """
+    Object to represent a Server-Sent Event.
+
     :param str data: The data field for the message.
     :param str id: The event ID to set the EventSource object's last
         event ID value to.
@@ -93,6 +97,7 @@ class SSE(BaseModel):
     retry: int = 15000  # ms
 
     @validator('event')
-    def event_must_be_valid(cls, v):
+    def event_must_be_valid(cls: 'SSE', v: str) -> str:
+        """Validate that event is a valid StreamEvent."""
         assert v in [e.value for e in StreamEvent]
         return v

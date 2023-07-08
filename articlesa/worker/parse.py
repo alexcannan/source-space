@@ -1,4 +1,5 @@
-"""articlesa.worker.parse reads tasks from a redis queue and processes them.
+"""
+articlesa.worker.parse reads tasks from a redis queue and processes them.
 
 the main functionality is to download an article, parse it, then return it via redis value.
 the worker can optionally use a residential proxy to cut down on bad returns.
@@ -108,7 +109,7 @@ async def parse_article(url: str) -> dict:
     # deduplicate links
     article.links = list(set(article.links))
 
-    # TODO: filter author list by if NER thinks it's a person
+    # MAYBE: filter author list by if NER thinks it's a person
 
     # Create a ParsedArticle object
     parsed_article = ParsedArticle(
