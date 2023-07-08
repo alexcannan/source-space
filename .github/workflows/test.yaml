@@ -28,9 +28,6 @@ jobs:
       - name: Running ruff
         run: ruff .
 
-      - name: Running black
-        run: black .
-
       - name: Running mypy
         run: make typecheck
 
