@@ -1,0 +1,42 @@
+name: Pull Request Testing
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test_pull_request:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.10.0
+        with:
+          access_token: ${{ github.token }}
+
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-python@v3
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Installing requirements
+        run: |
+          python --version
+          python -m pip install --upgrade pip pytest pytest-asyncio mypy ruff black
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          python -m pip install -e .
+
+      - name: Running ruff
+        run: ruff .
+
+      - name: Running black
+        run: black .
+
+      - name: Running mypy
+        run: make typecheck
+
+      - name: Running pytest
+        run: pytest .
