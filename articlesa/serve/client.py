@@ -1,3 +1,4 @@
+""" Client-side routes. """
 from pathlib import Path
 
 from fastapi import APIRouter
@@ -9,7 +10,8 @@ router = APIRouter()
 
 
 @router.get("/")
-async def home():
-    env = Environment(loader=FileSystemLoader(Path(__file__).parent))
+async def home() -> HTMLResponse:
+    """Return the home page."""
+    env = Environment(loader=FileSystemLoader(Path(__file__).parent), autoescape=True)
     template = env.get_template("article.html")
     return HTMLResponse(template.render())

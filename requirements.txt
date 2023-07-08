@@ -8,6 +8,7 @@ jinja2
 uvicorn[standard]
 yarl
 pytest
+mypy
 sse-starlette
 jinja2
 py2neo
