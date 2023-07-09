@@ -2,10 +2,7 @@
 
 Build a source tree from a news article recursively
 
-```
-source setup.sh
-python3 -m articlesa.front.article
-```
+🚧🚧🚧🚧 UNDER CONTRUCTION 🚧🚧🚧
 
 ## architecture
 
