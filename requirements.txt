@@ -8,6 +8,7 @@ jinja2
 uvicorn[standard]
 yarl
 pytest
+pytest-asyncio
 mypy
 sse-starlette
 jinja2

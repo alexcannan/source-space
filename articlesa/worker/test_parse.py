@@ -1,7 +1,9 @@
 """ Test parsing articles. """
-import articlesa.worker.parse
+import asyncio
 
 import pytest
+
+import articlesa.worker.parse
 
 
 article_urls = [
@@ -10,9 +12,18 @@ article_urls = [
 ]
 
 
+@pytest.fixture(scope="session")
+def event_loop():  # noqa
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+    yield loop
+    loop.close()
+
+
 @pytest.mark.parametrize("url", article_urls)
-def test_parse_article(url: str) -> None:
+@pytest.mark.asyncio
+async def test_parse_article(url: str) -> None:
     """Test parsing articles."""
-    task = articlesa.worker.parse.parse_article.delay(url)
-    result = task.get()
-    assert result
+    await articlesa.worker.parse.parse_article(url)
