@@ -6,9 +6,9 @@ sending server-sent events to the client while an article is being processed.
 """
 
 import asyncio
+from datetime import datetime
 import json
 from typing import AsyncGenerator, Optional
-import uuid
 
 from fastapi import APIRouter, Request
 from sse_starlette.sse import EventSourceResponse
@@ -29,32 +29,20 @@ from articlesa.worker.parse import parse_article
 router = APIRouter()
 
 
+class SafeEncoder(json.JSONEncoder):
+    """SafeEncoder encodes datetime objects as strings."""
+    def default(self, z):  # noqa
+        if isinstance(z, datetime):
+            return str(z)
+        else:
+            return super().default(z)
+
+
 def build_event(data: Optional[dict], id: str, event: StreamEvent) -> SSE:
     """build_event builds a server-sent event from data."""
     if not data:
         data = dict()
-    return SSE(data=json.dumps(data), id=id, event=event.value).dict()
-
-
-# FOR TESTING
-words = ["taco", "shelf", "gator", "iberia", "mongoose", "filthy"]
-netlocs = [
-    "facebook.com",
-    "tacobell.biz",
-    "lissajous.space",
-    "zencastr.com",
-    "hackernews.dev",
-    "source.space",
-]
-netlocs = [f"https://{netloc}" for netloc in netlocs]  # so <a>.hostname works
-
-
-def generate_hash() -> str:
-    """Return a random hash for testing."""
-    return str(uuid.uuid4())
-
-
-# END FOR TESTING
+    return SSE(data=json.dumps(data, cls=SafeEncoder), id=id, event=event.value)
 
 
 async def _add_url_task(url: str) -> dict:
@@ -63,19 +51,6 @@ async def _add_url_task(url: str) -> dict:
     # https://github.com/alexcannan/article-source-aggregator/issues/1
     task = parse_article.delay(url)
     return task.get()
-    # random_links = list(random.sample(netlocs, random.randint(1,5)))
-    # random_links = [rl+f"/{generate_hash()}" for rl in random_links]
-    # if random.random() > 0.9:
-    #     raise ValueError("error doing things")
-    # data = ParsedArticle(url=url,
-    #                         title=" ".join(random.sample(words, 3)).title(),
-    #                         authors=[],
-    #                         text="yo?",
-    #                         links=random_links,
-    #                         published="",
-    #                         parsedAtUtc=datetime.utcnow())
-    # await asyncio.sleep(random.normalvariate(0.5, 0.1))
-    # return data.dict()
 
 
 async def _article_stream(
@@ -91,7 +66,7 @@ async def _article_stream(
 
     async def _begin_processing_task(
         url: str, depth: int, parent: Optional[str]
-    ) -> SSE:
+    ) -> AsyncGenerator[SSE, None]:
         """Submit task to celery, create placholder node."""
         placeholder_node = PlaceholderArticle(
             urlhash=url_to_hash(url), depth=depth, parent=parent
@@ -100,7 +75,7 @@ async def _article_stream(
         task.set_name(f"{depth}/{url}")
         tasks.add(task)
         yield build_event(
-            data=placeholder_node.json(),
+            data=placeholder_node.dict(),
             id=task.get_name(),
             event=StreamEvent.NODE_PROCESSING,
         )
@@ -115,7 +90,7 @@ async def _article_stream(
             # only pass in fields relevant for rendering
             del data.text
             yield build_event(
-                data=data.json(), id=task.get_name(), event=StreamEvent.NODE_RENDER
+                data=data.dict(), id=task.get_name(), event=StreamEvent.NODE_RENDER
             )
             # if max depth has not been reached, also submit children
             if data.depth < max_depth:
@@ -126,13 +101,13 @@ async def _article_stream(
                         yield event
         except Exception as e:
             logger.opt(exception=e).error(f"error in task {task.get_name()}")
-            data = ParseFailure(
+            failure = ParseFailure(
                 message=f"got {e.__class__.__name__}",
                 status=420,
                 urlhash=url_to_hash(url),
             )
             yield build_event(
-                data=data.json(), id=task.get_name(), event=StreamEvent.NODE_FAILURE
+                data=failure.dict(), id=task.get_name(), event=StreamEvent.NODE_FAILURE
             )
 
     yield build_event(data=None, id="begin", event=StreamEvent.STREAM_BEGIN)
@@ -151,6 +126,14 @@ async def _article_stream(
     yield build_event(data=None, id="done", event=StreamEvent.STREAM_END)
 
 
+async def _event_formatter(
+    sse_generator: AsyncGenerator[SSE, None]
+) -> AsyncGenerator[dict, None]:
+    """Format server-sent events as dictionaries."""
+    async for event in sse_generator:
+        yield event.dict()
+
+
 @router.get("/a/{article_url:path}")
 async def article_stream(
     request: Request, article_url: str, depth: int = 3
@@ -158,4 +141,6 @@ async def article_stream(
     """Begin server-sent event stream for article parsing."""
     article_url = clean_url(article_url)
     logger.info(f"hello from article stream for {article_url}")
-    return EventSourceResponse(_article_stream(article_url, max_depth=depth))
+    return EventSourceResponse(
+        _event_formatter(_article_stream(article_url, max_depth=depth))
+    )

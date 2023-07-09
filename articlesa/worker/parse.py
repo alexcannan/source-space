@@ -16,12 +16,12 @@ from aiohttp import ClientSession
 from newspaper import Article
 
 from articlesa.logger import logger
-from articlesa.types import ParsedArticle, relative_to_absolute_url, read_blacklist
+from articlesa.types import ParsedArticle, relative_to_absolute_url, HostBlacklist
 from articlesa.worker.app import app as celeryapp
 
 
 session: Optional[ClientSession] = None
-blacklist = read_blacklist()
+blacklist = HostBlacklist()
 
 
 global_header = {
@@ -39,7 +39,6 @@ async def get_session_() -> ClientSession:
 
 class MissingArticleText(Exception):
     """Raised when an article has no text."""
-
     pass
 
 

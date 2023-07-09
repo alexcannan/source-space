@@ -1,4 +1,5 @@
 google.com
 twitter.com
 t.co
-twitter.com
+linkedin.com
+amazon.com

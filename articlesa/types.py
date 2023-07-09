@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Optional, Union
 from urllib.parse import urlparse
 
-from pydantic import BaseModel, validator, Json
+from pydantic import BaseModel, validator
 from yarl import URL
 
 
@@ -30,19 +30,41 @@ def url_to_hash(url: str) -> str:
     return hashlib.md5(url.encode()).hexdigest()  # noqa: S324
 
 
-def read_blacklist() -> set:
-    """Blacklist of netlocs to ignore."""
-    with Path("blacklist.txt").open("r") as f:
-        blacklist = set()
-        for line in f:
-            if sline := line.strip():
-                blacklist.add(sline)
-        return blacklist
+class HostBlacklist:
+    """Blacklist object, used to filter links."""
+    blacklist_file: Path = Path("blacklist.txt")
+
+    def _read_blacklist(self: "HostBlacklist") -> set:
+        """Blacklist of netlocs to ignore."""
+        with self.blacklist_file.open("r") as f:
+            blacklist = set()
+            for line in f:
+                if sline := line.strip():
+                    blacklist.add(sline)
+            return blacklist
+
+    def __init__(self: "HostBlacklist") -> None:
+        """Initialize blacklist."""
+        self.blacklist = self._read_blacklist()
+
+    def __contains__(self: "HostBlacklist", host: str) -> bool:
+        """
+        Check if host is in blacklist.
+
+        The netloc in the blacklist may be a subset of the host.
+        For example, we want to block any subdomains of
+        amazon.com, like smile.amazon.com.
+        """
+        if host in self.blacklist:
+            return True
+        for blacklisted_host in self.blacklist:
+            if host.endswith(blacklisted_host):
+                return True
+        return False
 
 
 class PlaceholderArticle(BaseModel):
     """Objects for when a source is found but it's still processing."""
-
     urlhash: str
     depth: int
     parent: Optional[str]
@@ -50,7 +72,6 @@ class PlaceholderArticle(BaseModel):
 
 class ParseFailure(BaseModel):
     """Object returned from parse worker when parse failed."""
-
     message: str
     status: Optional[int] = None
     urlhash: Optional[str] = None
@@ -58,7 +79,6 @@ class ParseFailure(BaseModel):
 
 class ParsedArticle(BaseModel):
     """Object returned from parse worker, to be stored to & retrieved from redis."""
-
     url: str
     title: str
     text: str
@@ -72,7 +92,6 @@ class ParsedArticle(BaseModel):
 
 class StreamEvent(Enum):
     """SSE event types."""
-
     STREAM_BEGIN = "stream_begin"
     NODE_PROCESSING = "node_processing"
     NODE_RENDER = "node_render"
@@ -96,8 +115,7 @@ class SSE(BaseModel):
         reconnect. This must be an integer, specifying the reconnection time in
         milliseconds. If a non-integer value is specified, the field is ignored.
     """
-
-    data: Optional[Json]
+    data: str
     id: str
     event: str  # expects StreamEvent value
     retry: int = 15000  # ms
