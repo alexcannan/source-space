@@ -9,5 +9,5 @@ uvicorn.run(
     host="localhost",
     port=7654,
     reload=True,
-    reload_dirs=[Path(__file__).parent],
+    reload_dirs=[str(Path(__file__).parent)],
 )
