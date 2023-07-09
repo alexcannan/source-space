@@ -1,7 +1,7 @@
 networkx
 matplotlib
 loguru
-# newspaper  (currently in git:alexcannan/newspaper)
+git+https://github.com/alexcannan/newspaper.git@master
 fastapi
 markupsafe
 jinja2
