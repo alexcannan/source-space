@@ -82,8 +82,8 @@ class ParsedArticle(BaseModel):
     url: str
     title: str
     text: str
-    authors: list
-    links: list
+    authors: list[str]
+    links: list[str]
     published: str
     parsedAtUtc: datetime
     urlhash: Optional[str] = None
