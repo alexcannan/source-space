@@ -12,7 +12,7 @@ pytest-asyncio
 mypy
 sse-starlette
 jinja2
-py2neo
+neo4j
 redis
 aiohttp
 celery
