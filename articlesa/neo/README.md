@@ -32,6 +32,8 @@ WITH article
 UNWIND $authors AS author_name
 MERGE (author:Author {name: author_name})
 MERGE (article)-[:AUTHORED_BY]->(author)
+MERGE (publisher:Publisher {netloc: $publisher})
+MERGE (article)-[:PUBLISHED_BY]->(publisher)
 ```
 
 #### Get article that matches url
@@ -39,4 +41,13 @@ MERGE (article)-[:AUTHORED_BY]->(author)
 ```cypher
 MATCH (article:Article {url: $url})
 RETURN article
+```
+
+#### Get a count of all articles
+
+```cypher
+MATCH (article:Article)
+MATCH (author:Author)
+MATCH (publisher:Publisher)
+RETURN COUNT(article) AS articleCount, COUNT(author) AS authorCount, COUNT(publisher) AS publisherCount
 ```

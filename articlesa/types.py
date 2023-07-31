@@ -84,10 +84,15 @@ class ParsedArticle(BaseModel):
     text: str
     authors: list[str]
     links: list[str]
-    published: str
+    published: str  # isoformat
     parsedAtUtc: datetime
     urlhash: Optional[str] = None
     depth: Optional[int] = None
+
+    @property
+    def publisher(self) -> str:
+        """Return the publisher's netloc."""
+        return urlparse(self.url).netloc
 
 
 class StreamEvent(Enum):
