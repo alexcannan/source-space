@@ -7,9 +7,15 @@ should be entered to perform any database operations.
 
 import os
 
-from neo4j import AsyncGraphDatabase, AsyncDriver, EagerResult
+from neo4j import AsyncGraphDatabase, AsyncDriver
+from neo4j.time import DateTime, Date, Time
 
 from articlesa.types import ParsedArticle
+
+
+class ArticleNotFound(Exception):
+    """Raised when an article is not found in the database."""
+    pass
 
 
 class Neo4JArticleDriver():
@@ -23,15 +29,15 @@ class Neo4JArticleDriver():
 
     async def __aenter__(self) -> 'Neo4JArticleDriver':
         """Enter the async context manager and return the driver."""
-        async with AsyncGraphDatabase.driver(self.uri) as driver:
-            self._driver = driver
-            return self
+        self._driver = await AsyncGraphDatabase.driver(self.uri).__aenter__()
+        return self
 
     async def __aexit__(self, exc_type, exc_value, traceback) -> None:  # noqa
         """Exit the async context manager."""
-        await self._driver.close()
+        # TODO: figure out why we see unclosed connection warnings  # noqa
+        await self._driver.__aexit__(exc_type, exc_value, traceback)
 
-    async def get_stats(self) -> EagerResult:
+    async def get_stats(self) -> dict:
         """Get quick stats describing the database."""
         query = """\
         MATCH (article:Article)
@@ -39,7 +45,11 @@ class Neo4JArticleDriver():
         MATCH (publisher:Publisher)
         RETURN COUNT(article) AS articleCount, COUNT(author) AS authorCount, COUNT(publisher) AS publisherCount
         """
-        return await self._driver.execute_query(query)
+        response = await self._driver.execute_query(query)
+        if response.records:
+            return response.records[0].data()
+        else:
+            return {}
 
     async def put_article(self, parsed_article: ParsedArticle) -> None:
         """
@@ -57,10 +67,10 @@ class Neo4JArticleDriver():
         UNWIND $authors AS author_name
         MERGE (author:Author {name: author_name})
         MERGE (article)-[:AUTHORED_BY]->(author)
-        MERGE (publisher:Publisher {netloc: $publisher})
+        MERGE (publisher:Publisher {netloc: $publisherNetLoc})
         MERGE (article)-[:PUBLISHED_BY]->(publisher)
         """
-        await self._driver.execute_query(
+        _response = await self._driver.execute_query(
             query,
             url=parsed_article.url,
             title=parsed_article.title,
@@ -68,5 +78,31 @@ class Neo4JArticleDriver():
             published=parsed_article.published,
             parsedAtUtc=parsed_article.parsedAtUtc,
             authors=parsed_article.authors,
-            publisher=parsed_article.publisher,
+            publisherNetLoc=parsed_article.publisherNetLoc,
         )
+
+    async def get_article(self, url: str) -> ParsedArticle:
+        """Get an article by url. Raises KeyError if not found."""
+        query = """\
+        MATCH (article:Article {url: $url})
+        OPTIONAL MATCH (article)-[:AUTHORED_BY]->(author:Author)
+        WITH article, COLLECT(author) AS authors
+        RETURN article, authors
+        """
+        response = await self._driver.execute_query(query, url=url)
+        if response.records:
+            data = response.records[0].data()
+            authors = data.get("authors", [])
+            data["article"]["authors"] = [author["name"] for author in authors]
+
+            # need to call to_native on DateTime/Date/Time objects
+            for key, value in data["article"].items():
+                if isinstance(value, (DateTime, Date, Time)):
+                    data["article"][key] = value.to_native()
+
+            return ParsedArticle(
+                **data.get("article", {}),
+                text=None,
+            )
+        else:
+            raise ArticleNotFound(url)

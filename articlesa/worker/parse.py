@@ -117,7 +117,7 @@ async def parse_article(url: str) -> dict:
         text=article.text,
         authors=article.authors,
         links=article.links,
-        published=str(article.publish_date),
+        published=article.publish_date,
         parsedAtUtc=datetime.utcnow(),
     ).dict()
 
