@@ -14,6 +14,7 @@ from fastapi import APIRouter, Request
 from sse_starlette.sse import EventSourceResponse
 
 from articlesa.logger import logger
+from articlesa.neo import Neo4JArticleDriver, ArticleNotFound
 from articlesa.types import (
     ParsedArticle,
     StreamEvent,
@@ -45,16 +46,27 @@ def build_event(data: Optional[dict], id: str, event: StreamEvent) -> SSE:
     return SSE(data=json.dumps(data, cls=SafeEncoder), id=id, event=event.value)
 
 
-async def _add_url_task(url: str) -> dict:
-    """Create and wait for celery task; intended to be wrapped in asyncio.Task."""
-    # TODO(alex): create task output interface for type checking
-    # https://github.com/alexcannan/article-source-aggregator/issues/1
-    task = parse_article.delay(url)
-    return task.get()
+async def retrieve_article(url: str, neodriver: Neo4JArticleDriver) -> dict:
+    """
+    Retrieve article from db or through celery; intended to be wrapped in asyncio.Task.
+
+    Tries neo.Neo4jArticleDriver.get_article first, then falls back to celery.
+    """
+    try:
+        parsed_article = await neodriver.get_article(url)
+        return parsed_article.dict()
+    except ArticleNotFound:
+        task = parse_article.delay(url)
+        article_dict = task.get()
+        try:
+            await neodriver.put_article(ParsedArticle(**article_dict))
+        except Exception as e:
+            logger.opt(exception=e).error(f"error putting article {url} into db")
+        return article_dict
 
 
 async def _article_stream(
-    article_url: str, max_depth: int
+    article_url: str, max_depth: int, neodriver: Neo4JArticleDriver
 ) -> AsyncGenerator[SSE, None]:
     """
     Generate server-sent events to signal article parsing progress.
@@ -71,7 +83,7 @@ async def _article_stream(
         placeholder_node = PlaceholderArticle(
             urlhash=url_to_hash(url), depth=depth, parent=parent
         )
-        task = asyncio.create_task(_add_url_task(url))
+        task = asyncio.create_task(retrieve_article(url, neodriver))
         task.set_name(f"{depth}/{url}")
         tasks.add(task)
         yield build_event(
@@ -141,6 +153,7 @@ async def article_stream(
     """Begin server-sent event stream for article parsing."""
     article_url = clean_url(article_url)
     logger.info(f"hello from article stream for {article_url}")
-    return EventSourceResponse(
-        _event_formatter(_article_stream(article_url, max_depth=depth))
-    )
+    async with Neo4JArticleDriver() as neodriver:
+        return EventSourceResponse(
+            _event_formatter(_article_stream(article_url, max_depth=depth, neodriver=neodriver))
+        )

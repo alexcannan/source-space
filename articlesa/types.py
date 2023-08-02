@@ -81,16 +81,16 @@ class ParsedArticle(BaseModel):
     """Object returned from parse worker, to be stored to & retrieved from redis."""
     url: str
     title: str
-    text: str
+    text: Optional[str]
     authors: list[str]
     links: list[str]
-    published: str  # isoformat
+    published: Union[str, datetime, None]  # isoformat
     parsedAtUtc: datetime
     urlhash: Optional[str] = None
     depth: Optional[int] = None
 
     @property
-    def publisher(self) -> str:
+    def publisherNetLoc(self) -> str:
         """Return the publisher's netloc."""
         return urlparse(self.url).netloc
 
