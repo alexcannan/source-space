@@ -3,11 +3,13 @@ from pathlib import Path
 
 import uvicorn
 
+from articlesa.config import ServeConfig
+
 
 uvicorn.run(
     "articlesa.serve:app",
     host="localhost",
-    port=7654,
+    port=ServeConfig.port,
     reload=True,
     reload_dirs=[str(Path(__file__).parent)],
 )
