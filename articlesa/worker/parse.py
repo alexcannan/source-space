@@ -42,13 +42,16 @@ class MissingArticleText(Exception):
     pass
 
 
-async def check_redirect(url: str, session: ClientSession) -> str:
+async def check_redirect(url: str, session: ClientSession) -> Optional[str]:
     """Given a url, check if it redirects and return the final url."""
     logger.debug(f"checking redirect for url {url}")
     async with session.head(
         url, headers=global_header, allow_redirects=True
     ) as response:
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except Exception:
+            return None
         return str(response.url)
 
 
@@ -100,9 +103,11 @@ async def parse_article(url: str) -> dict:
         *[check_redirect(link, session) for link in article.links]
     )
 
-    # filter links by blacklist again after redirects
+    # filter links by blacklist again after redirects, also remove None
     article.links = [
-        link for link in article.links if urlparse(link).netloc not in blacklist
+        link
+        for link in article.links
+        if link and (urlparse(link).netloc not in blacklist)
     ]
 
     # deduplicate links
