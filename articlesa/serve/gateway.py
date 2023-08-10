@@ -8,8 +8,9 @@ sending server-sent events to the client while an article is being processed.
 import asyncio
 from datetime import datetime
 import json
-from typing import AsyncGenerator, Optional
+from typing import AsyncGenerator, Optional, cast
 
+from celery.app.task import Task
 from fastapi import APIRouter, Request
 from sse_starlette.sse import EventSourceResponse
 
@@ -25,6 +26,7 @@ from articlesa.types import (
     ParseFailure,
 )
 from articlesa.worker.parse import parse_article
+parse_article = cast(Task, parse_article)
 
 
 router = APIRouter()
@@ -46,11 +48,17 @@ def build_event(data: Optional[dict], id: str, event: StreamEvent) -> SSE:
     return SSE(data=json.dumps(data, cls=SafeEncoder), id=id, event=event.value)
 
 
-async def retrieve_article(url: str, neodriver: Neo4JArticleDriver) -> dict:
+async def retrieve_article(url: str,
+                           neodriver: Neo4JArticleDriver,
+                           parent_url: Optional[str] = None,
+                           ) -> dict:
     """
     Retrieve article from db or through celery; intended to be wrapped in asyncio.Task.
 
     Tries neo.Neo4jArticleDriver.get_article first, then falls back to celery.
+
+    If a parent_url is passed, neo4j will create a relationship between the parent
+    and the child article.
     """
     try:
         parsed_article = await neodriver.get_article(url)
@@ -59,7 +67,7 @@ async def retrieve_article(url: str, neodriver: Neo4JArticleDriver) -> dict:
         task = parse_article.delay(url)
         article_dict = task.get()
         try:
-            await neodriver.put_article(ParsedArticle(**article_dict))
+            await neodriver.put_article(ParsedArticle(**article_dict), parent_url=parent_url)
         except Exception as e:
             logger.opt(exception=e).error(f"error putting article {url} into db")
         return article_dict
@@ -83,7 +91,7 @@ async def _article_stream(
         placeholder_node = PlaceholderArticle(
             urlhash=url_to_hash(url), depth=depth, parent=parent
         )
-        task = asyncio.create_task(retrieve_article(url, neodriver))
+        task = asyncio.create_task(retrieve_article(url, neodriver, parent_url=parent))
         task.set_name(f"{depth}/{url}")
         tasks.add(task)
         yield build_event(

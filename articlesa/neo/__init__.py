@@ -51,11 +51,15 @@ class Neo4JArticleDriver():
         else:
             return {}
 
-    async def put_article(self, parsed_article: ParsedArticle) -> None:
+    async def put_article(self,
+                          parsed_article: ParsedArticle,
+                          parent_url: str,
+                          ) -> None:
         """
         Put a parsed article into the database.
 
         Includes putting author and publisher nodes.
+        If a parent_url is passed, a relationship is created between the parent and the child.
         """
         query = """\
         MERGE (article:Article {url: $url})
@@ -69,6 +73,9 @@ class Neo4JArticleDriver():
         MERGE (article)-[:AUTHORED_BY]->(author)
         MERGE (publisher:Publisher {netloc: $publisherNetLoc})
         MERGE (article)-[:PUBLISHED_BY]->(publisher)
+        WITH article, $parent_url AS parent_url
+        MATCH (parent:Article {url: parent_url})
+        MERGE (parent)-[:LINKS_TO]->(article)
         """
         _response = await self._driver.execute_query(
             query,
