@@ -34,4 +34,5 @@ class MastodonCrawler:
         self.driver.get(self.url)
         articles = self.driver.find_elements(By.CSS_SELECTOR, "a.story")
         article_urls = [article.get_attribute("href") for article in articles]
+        logger.info(f"found {len(article_urls)} articles from mastodon.social")
         return article_urls

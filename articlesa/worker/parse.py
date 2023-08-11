@@ -17,7 +17,6 @@ from newspaper import Article
 
 from articlesa.logger import logger
 from articlesa.types import ParsedArticle, relative_to_absolute_url, HostBlacklist
-from articlesa.worker.app import app as celeryapp
 
 
 session: Optional[ClientSession] = None
@@ -27,14 +26,6 @@ blacklist = HostBlacklist()
 global_header = {
     "User-Agent": "articlesa/0.0.1",
 }
-
-
-async def get_session_() -> ClientSession:
-    """Create a global aiohttp session if one doesn't exist."""
-    global session
-    if not session:
-        session = await ClientSession().__aenter__()
-    return session
 
 
 class MissingArticleText(Exception):
@@ -63,10 +54,9 @@ async def download_article(url: str, session: ClientSession) -> str:
         return await response.text()
 
 
-@celeryapp.task(name="parse_article")
-async def parse_article(url: str) -> dict:
+async def parse_article(ctx, url: str) -> dict:
     """Given a url, parse the article and return a dict like ParsedArticle."""
-    session = await get_session_()
+    session: ClientSession = ctx["session"]
 
     # Check for redirects
     final_url = await check_redirect(url, session)
@@ -124,10 +114,6 @@ async def parse_article(url: str) -> dict:
         links=article.links,
         published=article.publish_date,
         parsedAtUtc=datetime.utcnow(),
-    ).dict()
+    )
 
-    return parsed_article
-
-
-if __name__ == "__main__":
-    print("run me with:\ncelery -A articlesa.worker.parse worker -l info")  # noqa: T201
+    return parsed_article.dict()

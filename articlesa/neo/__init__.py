@@ -86,6 +86,7 @@ class Neo4JArticleDriver():
             parsedAtUtc=parsed_article.parsedAtUtc,
             authors=parsed_article.authors,
             publisherNetLoc=parsed_article.publisherNetLoc,
+            parent_url=parent_url,
         )
 
     async def get_article(self, url: str) -> ParsedArticle:

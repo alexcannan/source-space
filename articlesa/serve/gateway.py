@@ -9,6 +9,8 @@ import asyncio
 from datetime import datetime
 import json
 from typing import AsyncGenerator, Optional, cast
+from arq import ArqRedis
+from arq.jobs import JobStatus
 
 from celery.app.task import Task
 from fastapi import APIRouter, Request
@@ -25,8 +27,7 @@ from articlesa.types import (
     PlaceholderArticle,
     ParseFailure,
 )
-from articlesa.worker.parse import parse_article
-parse_article = cast(Task, parse_article)
+from articlesa.worker import create_pool
 
 
 router = APIRouter()
@@ -49,13 +50,14 @@ def build_event(data: Optional[dict], id: str, event: StreamEvent) -> SSE:
 
 
 async def retrieve_article(url: str,
+                           arqpool: ArqRedis,
                            neodriver: Neo4JArticleDriver,
                            parent_url: Optional[str] = None,
                            ) -> dict:
     """
-    Retrieve article from db or through celery; intended to be wrapped in asyncio.Task.
+    Retrieve article from db or through arq; intended to be wrapped in asyncio.Task.
 
-    Tries neo.Neo4jArticleDriver.get_article first, then falls back to celery.
+    Tries neo.Neo4jArticleDriver.get_article first, then falls back to arq enqueueing.
 
     If a parent_url is passed, neo4j will create a relationship between the parent
     and the child article.
@@ -64,8 +66,10 @@ async def retrieve_article(url: str,
         parsed_article = await neodriver.get_article(url)
         return parsed_article.dict()
     except ArticleNotFound:
-        task = parse_article.delay(url)
-        article_dict = task.get()
+        job = await arqpool.enqueue_job("parse_article", url)
+        while await job.status() != JobStatus.complete:
+            await asyncio.sleep(0.1)
+        article_dict = await job.result()
         try:
             await neodriver.put_article(ParsedArticle(**article_dict), parent_url=parent_url)
         except Exception as e:
@@ -83,6 +87,7 @@ async def _article_stream(
     max_depth: maximum depth to parse to
     """
     tasks = set()
+    arqpool = await create_pool()
 
     async def _begin_processing_task(
         url: str, depth: int, parent: Optional[str]
@@ -91,7 +96,7 @@ async def _article_stream(
         placeholder_node = PlaceholderArticle(
             urlhash=url_to_hash(url), depth=depth, parent=parent
         )
-        task = asyncio.create_task(retrieve_article(url, neodriver, parent_url=parent))
+        task = asyncio.create_task(retrieve_article(url, arqpool, neodriver, parent_url=parent))
         task.set_name(f"{depth}/{url}")
         tasks.add(task)
         yield build_event(
