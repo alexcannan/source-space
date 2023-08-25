@@ -36,3 +36,4 @@ class WorkerSettings:
     functions = [parse_article]
     on_startup = startup
     on_shutdown = shutdown
+    max_jobs = 5

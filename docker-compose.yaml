@@ -7,8 +7,7 @@ services:
     ports:
       - 7654:7654
     environment:
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - REDIS_URL=redis://redis:6379/0
       - NEO4J_URI=bolt://neo4j:7687
     depends_on:
       - redis
@@ -18,10 +17,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: celery -A articlesa.worker.app worker --loglevel=info
+    command: arq articlesa.worker.WorkerSettings
     environment:
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - REDIS_URL=redis://redis:6379/0
     depends_on:
       - redis
 

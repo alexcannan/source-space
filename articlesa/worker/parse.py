@@ -14,6 +14,8 @@ from urllib.parse import urlparse
 
 from aiohttp import ClientSession
 from newspaper import Article
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options as ChromeOptions
 
 from articlesa.logger import logger
 from articlesa.types import ParsedArticle, relative_to_absolute_url, HostBlacklist
@@ -21,6 +23,10 @@ from articlesa.types import ParsedArticle, relative_to_absolute_url, HostBlackli
 
 session: Optional[ClientSession] = None
 blacklist = HostBlacklist()
+redirect_semaphore = asyncio.Semaphore(value=25)
+selenium_options = ChromeOptions()
+selenium_options.add_argument("--headless=new")
+
 
 
 global_header = {
@@ -35,26 +41,29 @@ class MissingArticleText(Exception):
 
 async def check_redirect(url: str, session: ClientSession) -> Optional[str]:
     """Given a url, check if it redirects and return the final url."""
-    logger.debug(f"checking redirect for url {url}")
-    async with session.head(
-        url, headers=global_header, allow_redirects=True
-    ) as response:
-        try:
-            response.raise_for_status()
-        except Exception:
-            return None
-        return str(response.url)
+    async with redirect_semaphore:
+        logger.debug(f"checking redirect for url {url}")
+        async with session.head(
+            url, headers=global_header, allow_redirects=True
+        ) as response:
+            try:
+                response.raise_for_status()
+            except Exception:
+                return None
+            return str(response.url)
 
 
-async def download_article(url: str, session: ClientSession) -> str:
+async def download_article(url: str) -> str:
     """Given a url, download the article and return the html as a string."""
     logger.debug(f"downloading article from url {url}")
-    async with session.get(url, headers=global_header) as response:
-        response.raise_for_status()
-        return await response.text()
+    driver = webdriver.Chrome(options=selenium_options)
+    driver.get(url)
+    try:
+        return driver.page_source
+    finally:
+        driver.quit()
 
-
-async def parse_article(ctx, url: str) -> dict:
+async def parse_article(ctx: dict, url: str) -> dict:
     """Given a url, parse the article and return a dict like ParsedArticle."""
     session: ClientSession = ctx["session"]
 
@@ -64,7 +73,7 @@ async def parse_article(ctx, url: str) -> dict:
         logger.info(f"redirected from {url} to {final_url}")
 
     # Download the article
-    article_html = await download_article(final_url, session)
+    article_html = await download_article(final_url)
 
     # Parse the article using forked newspaper3k with .links property
     article = Article(str(final_url))
@@ -73,7 +82,7 @@ async def parse_article(ctx, url: str) -> dict:
     article.parse()
 
     if not article.text:
-        raise MissingArticleText()
+        raise MissingArticleText(f"unable to parse text from url {final_url}")
 
     # make relative links absolute
     for i, link in enumerate(article.links):
