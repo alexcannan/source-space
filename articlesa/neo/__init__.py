@@ -108,6 +108,10 @@ class Neo4JArticleDriver():
                 if isinstance(value, (DateTime, Date, Time)):
                     data["article"][key] = value.to_native()
 
+            # explicitly set published as undefined if missing
+            if not data["article"].get("published"):
+                data["article"]["published"] = None
+
             return ParsedArticle(
                 **data.get("article", {}),
                 text=None,

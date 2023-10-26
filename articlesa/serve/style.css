@@ -20,6 +20,8 @@ span.title {
 
 body {
     font-family: 'IntelOne Mono', 'Manrope', 'Helvetica Neue', 'Helvetica', 'Arial', sans-serif;
+    background-color: black;
+    color: white;
 }
 
 .nodeinfo {

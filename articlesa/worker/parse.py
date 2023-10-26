@@ -9,6 +9,7 @@ not redirect links.
 
 import asyncio
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
 
@@ -22,7 +23,7 @@ from articlesa.types import ParsedArticle, relative_to_absolute_url, HostBlackli
 
 blacklist = HostBlacklist()
 redirect_semaphore = asyncio.Semaphore(value=25)
-service = services.Chromedriver()
+service = services.Chromedriver(log_file=Path("chromedriver.log").open("a"))
 chrome_options = {'goog:chromeOptions': {'args': ['--headless', '--disable-gpu']}}
 browser = browsers.Chrome(**chrome_options)
 
@@ -71,6 +72,7 @@ async def parse_article(ctx: dict, url: str) -> dict:
     final_url = await check_redirect(url, session)
     if str(final_url) != url:
         logger.info(f"redirected from {url} to {final_url}")
+    final_url = final_url or url
 
     # Download the article
     article_html = await download_article(final_url)
@@ -82,7 +84,10 @@ async def parse_article(ctx: dict, url: str) -> dict:
     article.parse()
 
     if not article.text:
-        raise MissingArticleText(f"unable to parse text from url {final_url}")
+        raise MissingArticleText(f"unable to parse text from url {final_url}, other parsing likely failed too")
+
+    logger.debug(f"{article.text=}")
+    logger.debug(f"{article.links=}")
 
     # make relative links absolute
     for i, link in enumerate(article.links):
