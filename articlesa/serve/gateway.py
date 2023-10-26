@@ -8,11 +8,10 @@ sending server-sent events to the client while an article is being processed.
 import asyncio
 from datetime import datetime
 import json
-from typing import AsyncGenerator, Optional, cast
+from typing import AsyncGenerator, Optional
 from arq import ArqRedis
 from arq.jobs import JobStatus
 
-from celery.app.task import Task
 from fastapi import APIRouter, Request
 from sse_starlette.sse import EventSourceResponse
 

@@ -63,6 +63,7 @@ async def download_article(url: str) -> str:
     finally:
         driver.quit()
 
+
 async def parse_article(ctx: dict, url: str) -> dict:
     """Given a url, parse the article and return a dict like ParsedArticle."""
     session: ClientSession = ctx["session"]
