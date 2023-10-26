@@ -13,20 +13,18 @@ from typing import Optional
 from urllib.parse import urlparse
 
 from aiohttp import ClientSession
+from arsenic import get_session, services, browsers
 from newspaper import Article
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options as ChromeOptions
 
 from articlesa.logger import logger
 from articlesa.types import ParsedArticle, relative_to_absolute_url, HostBlacklist
 
 
-session: Optional[ClientSession] = None
 blacklist = HostBlacklist()
 redirect_semaphore = asyncio.Semaphore(value=25)
-selenium_options = ChromeOptions()
-selenium_options.add_argument("--headless=new")
-
+service = services.Chromedriver()
+chrome_options = {'goog:chromeOptions': {'args': ['--headless', '--disable-gpu']}}
+browser = browsers.Chrome(**chrome_options)
 
 
 global_header = {
@@ -56,12 +54,13 @@ async def check_redirect(url: str, session: ClientSession) -> Optional[str]:
 async def download_article(url: str) -> str:
     """Given a url, download the article and return the html as a string."""
     logger.debug(f"downloading article from url {url}")
-    driver = webdriver.Chrome(options=selenium_options)
-    driver.get(url)
-    try:
-        return driver.page_source
-    finally:
-        driver.quit()
+    async with get_session(service, browser) as session:
+        await session.set_window_fullscreen()
+        await session.get(url)
+        # TODO: save screenshot for debugging?
+        # with open('image.png', 'wb') as of:
+        #     of.write((await session.get_screenshot()).getbuffer())
+        return await session.get_page_source()
 
 
 async def parse_article(ctx: dict, url: str) -> dict:
