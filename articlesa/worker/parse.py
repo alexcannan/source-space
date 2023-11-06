@@ -45,6 +45,8 @@ async def check_redirect(url: str, session: ClientSession) -> Optional[str]:
         async with session.head(
             url, headers=global_header, allow_redirects=True
         ) as response:
+            if response.status == 405:
+                return url  # HEAD not allowed, assume no redirect
             try:
                 response.raise_for_status()
             except Exception:

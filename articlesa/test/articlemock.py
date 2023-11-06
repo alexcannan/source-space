@@ -13,7 +13,7 @@ app = FastAPI()
 
 
 words_file = Path("/usr/share/dict/words")
-words = set(words_file.read_text().splitlines())
+words = words_file.read_text().splitlines()
 
 stop_words = StopWords().STOP_WORDS
 
@@ -32,7 +32,9 @@ article_template = Template("""\
     <body>
         <h1>Article {{ article_id }}</h1>
         <h2>Authors: {{ article_authors }}</h2>
-        <p>{{ article_text }}</p>
+        <div>
+            <p>{{ article_text }}</p>
+        </div>
     </body>
 </html>\
 """)
