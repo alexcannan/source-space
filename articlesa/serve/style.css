@@ -7,13 +7,23 @@
     z-index: -1;
 }
 
-span.netloc {
+.nodedepth {
+    display: inline;
+}
+
+.articlelink {
+    position: absolute;
+    right: 4px;
+    top: 4px;
+}
+
+span.articlenetloc {
     font-size: 1.5vmin;
     color: #999;
     display: inline-block;
 }
 
-span.title {
+span.articletitle {
     font-size: 1.5vmin;
     display: inline-block;
 }

@@ -30,7 +30,7 @@ window.addEventListener('DOMContentLoaded', function() {
       'text-opacity': 0.7,
       'text-valign': 'center',
       'text-halign': 'center',
-      'text-wrap': 'wrap',
+      'text-wrap': 'nowrap',
       'opacity': 0.7,
     })
   .selector('node.success')
@@ -66,7 +66,7 @@ window.addEventListener('DOMContentLoaded', function() {
       tpl(data) {
         // no idea why 3 <br>s and a newline are needed to get the title to show up
         // TODO: if the node is processing, we can display a loading thing here
-        return `<span class="netloc">${data.depth}|${data.netloc}</span><br><br><br>\n<span class="title">${data.title}</span><br><a href="${data.url}">⛓</a>`;
+        return `<div><div class="nodedepth">${data.depth}</div><span class="articlenetloc">${data.netloc}</span><br><span class="articletitle">${data.title}</span><br><a class="articlelink" href="${data.url}"><svg width="10" height="10"><use xlink:href="#outlinksvg"></use></svg></a></div>`;
       }
     }
   ]);
