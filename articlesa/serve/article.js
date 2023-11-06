@@ -17,7 +17,22 @@ window.addEventListener('DOMContentLoaded', function() {
         },
       });
     layout.run();
-  })
+  });
+
+  // if user clicks on node and the click is on an <a> tag, open the link
+  cy.on('click', function(event) {
+    var target = event.target;
+
+    // Check if the event target is an <a> element inside a rich node
+    if (target.is('a')) {
+        // Open the link
+        window.open(target._private.data.url, '_blank');
+        // TODO: only open new tab if <a> link was clicked
+    } else {
+        // Cytoscape's default event cancellation for other elements
+        event.stopPropagation();
+    }
+  });
 
   cy.style()
   .clear()

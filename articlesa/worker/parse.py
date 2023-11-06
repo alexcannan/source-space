@@ -56,6 +56,7 @@ async def check_redirect(url: str, session: ClientSession) -> Optional[str]:
 
 async def download_article(url: str) -> str:
     """Given a url, download the article and return the html as a string."""
+    # TODO: don't open and close chromedriver for every article, maintain one
     logger.debug(f"downloading article from url {url}")
     async with get_session(service, browser) as session:
         await session.set_window_fullscreen()
