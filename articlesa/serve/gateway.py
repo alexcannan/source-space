@@ -63,7 +63,7 @@ async def retrieve_article(url: str,
     """
     try:
         parsed_article = await neodriver.get_article(url)
-        return parsed_article.dict()
+        return parsed_article.model_dump()
     except ArticleNotFound:
         job = await arqpool.enqueue_job("parse_article", url)
         while await job.status() != JobStatus.complete:
@@ -99,7 +99,7 @@ async def _article_stream(
         task.set_name(f"{depth}/{url}")
         tasks.add(task)
         yield build_event(
-            data=placeholder_node.dict(),
+            data=placeholder_node.model_dump(),
             id=task.get_name(),
             event=StreamEvent.NODE_PROCESSING,
         )
@@ -114,7 +114,7 @@ async def _article_stream(
             # only pass in fields relevant for rendering
             del data.text
             yield build_event(
-                data=data.dict(), id=task.get_name(), event=StreamEvent.NODE_RENDER
+                data=data.model_dump(), id=task.get_name(), event=StreamEvent.NODE_RENDER
             )
             # if max depth has not been reached, also submit children
             if data.depth < max_depth:
@@ -131,7 +131,7 @@ async def _article_stream(
                 urlhash=url_to_hash(url),
             )
             yield build_event(
-                data=failure.dict(), id=task.get_name(), event=StreamEvent.NODE_FAILURE
+                data=failure.model_dump(), id=task.get_name(), event=StreamEvent.NODE_FAILURE
             )
 
     yield build_event(data=None, id="begin", event=StreamEvent.STREAM_BEGIN)
@@ -155,7 +155,7 @@ async def _event_formatter(
 ) -> AsyncGenerator[dict, None]:
     """Format server-sent events as dictionaries."""
     async for event in sse_generator:
-        yield event.dict()
+        yield event.model_dump()
 
 
 @router.get("/a/{article_url:path}")

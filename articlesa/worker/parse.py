@@ -132,4 +132,4 @@ async def parse_article(ctx: dict, url: str) -> dict:
         parsedAtUtc=datetime.utcnow(),
     )
 
-    return parsed_article.dict()
+    return parsed_article.model_dump()
