@@ -65,15 +65,16 @@ async def retrieve_article(url: str,
         parsed_article = await neodriver.get_article(url)
         return parsed_article.model_dump()
     except ArticleNotFound:
-        job = await arqpool.enqueue_job("parse_article", url)
-        while await job.status() != JobStatus.complete:
-            await asyncio.sleep(0.1)
-        article_dict = await job.result()
-        try:
-            await neodriver.put_article(ParsedArticle(**article_dict), parent_url=parent_url)
-        except Exception as e:
-            logger.opt(exception=e).error(f"error putting article {url} into db")
-        return article_dict
+        pass
+    job = await arqpool.enqueue_job("parse_article", url)
+    while await job.status() != JobStatus.complete:
+        await asyncio.sleep(0.1)
+    article_dict = await job.result()
+    try:
+        await neodriver.put_article(ParsedArticle(**article_dict), parent_url=parent_url)
+    except Exception as e:
+        logger.opt(exception=e).error(f"error putting article {url} into db")
+    return article_dict
 
 
 async def _article_stream(
@@ -108,7 +109,7 @@ async def _article_stream(
         depth, url = task.get_name().split("/", maxsplit=1)
         try:
             task.exception()  # raise exception if there is one
-            data = ParsedArticle.parse_obj(task.result())
+            data = ParsedArticle.model_validate(task.result())
             data.urlhash = url_to_hash(url)
             data.depth = int(depth)
             # only pass in fields relevant for rendering
