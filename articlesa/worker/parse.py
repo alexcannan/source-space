@@ -9,12 +9,11 @@ not redirect links.
 
 import asyncio
 from datetime import datetime
-from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
 
 from aiohttp import ClientSession
-from arsenic import get_session, services, browsers
+from arsenic import Session
 from newspaper import Article
 
 from articlesa.logger import logger
@@ -23,9 +22,6 @@ from articlesa.types import ParsedArticle, relative_to_absolute_url, HostBlackli
 
 blacklist = HostBlacklist()
 redirect_semaphore = asyncio.Semaphore(value=25)
-service = services.Chromedriver(log_file=Path("chromedriver.log").open("a"))
-chrome_options = {'goog:chromeOptions': {'args': ['--headless', '--disable-gpu']}}
-browser = browsers.Chrome(**chrome_options)
 
 
 global_header = {
@@ -38,7 +34,7 @@ class MissingArticleText(Exception):
     pass
 
 
-async def check_redirect(url: str, session: ClientSession) -> Optional[str]:
+async def check_redirect(session: ClientSession, url: str) -> Optional[str]:
     """Given a url, check if it redirects and return the final url."""
     async with redirect_semaphore:
         logger.debug(f"checking redirect for url {url}")
@@ -54,31 +50,30 @@ async def check_redirect(url: str, session: ClientSession) -> Optional[str]:
             return str(response.url)
 
 
-async def download_article(url: str) -> str:
+async def download_article(session: Session, url: str) -> str:
     """Given a url, download the article and return the html as a string."""
-    # TODO: don't open and close chromedriver for every article, maintain one
     logger.debug(f"downloading article from url {url}")
-    async with get_session(service, browser) as session:
-        await session.set_window_fullscreen()
-        await session.get(url)
-        # TODO: save screenshot for debugging?
-        # with open('image.png', 'wb') as of:
-        #     of.write((await session.get_screenshot()).getbuffer())
-        return await session.get_page_source()
+    await session.set_window_fullscreen()
+    await session.get(url)
+    # TODO: save screenshot for debugging?
+    # with open('image.png', 'wb') as of:
+    #     of.write((await session.get_screenshot()).getbuffer())
+    return await session.get_page_source()
 
 
 async def parse_article(ctx: dict, url: str) -> dict:
     """Given a url, parse the article and return a dict like ParsedArticle."""
-    session: ClientSession = ctx["session"]
+    arsenicsession: Session = ctx["arsenicsession"]
+    aiohttpsession: ClientSession = ctx["aiohttpsession"]
 
     # Check for redirects
-    final_url = await check_redirect(url, session)
+    final_url = await check_redirect(aiohttpsession, url)
     if str(final_url) != url:
         logger.info(f"redirected from {url} to {final_url}")
     final_url = final_url or url
 
     # Download the article
-    article_html = await download_article(final_url)
+    article_html = await download_article(arsenicsession, final_url)
 
     # Parse the article using forked newspaper3k with .links property
     article = Article(str(final_url))
@@ -107,7 +102,7 @@ async def parse_article(ctx: dict, url: str) -> dict:
 
     # redirect links if needed
     article.links = await asyncio.gather(
-        *[check_redirect(link, session) for link in article.links]
+        *[check_redirect(aiohttpsession, link) for link in article.links]
     )
 
     # filter links by blacklist again after redirects, also remove None
