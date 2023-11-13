@@ -22,6 +22,7 @@ from articlesa.types import ParsedArticle, relative_to_absolute_url, HostBlackli
 
 blacklist = HostBlacklist()
 redirect_semaphore = asyncio.Semaphore(value=25)
+download_semaphore = asyncio.Semaphore(value=1)
 
 
 global_header = {
@@ -52,13 +53,14 @@ async def check_redirect(session: ClientSession, url: str) -> Optional[str]:
 
 async def download_article(session: Session, url: str) -> str:
     """Given a url, download the article and return the html as a string."""
-    logger.debug(f"downloading article from url {url}")
-    await session.set_window_fullscreen()
-    await session.get(url)
-    # TODO: save screenshot for debugging?
-    # with open('image.png', 'wb') as of:
-    #     of.write((await session.get_screenshot()).getbuffer())
-    return await session.get_page_source()
+    async with download_semaphore:
+        logger.debug(f"downloading article from url {url}")
+        await session.set_window_fullscreen()
+        await session.get(url)
+        # TODO: save screenshot for debugging?
+        # with open('image.png', 'wb') as of:
+        #     of.write((await session.get_screenshot()).getbuffer())
+        return await session.get_page_source()
 
 
 async def parse_article(ctx: dict, url: str) -> dict:
