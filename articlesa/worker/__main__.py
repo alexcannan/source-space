@@ -1,17 +1,14 @@
+""" main module of source space worker """
+
 import asyncio
 
 from arq import create_pool
 from arq.connections import RedisSettings
-from arq.jobs import Job, JobStatus
+from arq.jobs import Job
 
 
-async def wait_for_job_to_complete(job: Job) -> None:
-    """ Return empty when job is complete, useful for awaiting several jobs. """
-    while await job.status() != JobStatus.complete:
-        await asyncio.sleep(0.5)
-
-
-async def main() -> None:
+async def submit() -> None:
+    """ submit a few test urls to the scrape worker. """
     redis = await create_pool(RedisSettings())
     jobs: list[Job] = []
     urls = ('https://facebook.com', 'https://microsoft.com', 'https://github.com')
@@ -25,6 +22,12 @@ async def main() -> None:
         print(f'{url} -> {result}')  # noqa: T201
 
 
-
 if __name__ == '__main__':
-    asyncio.run(main())
+    import argparse
+    parser = argparse.ArgumentParser()
+    subcommands = parser.add_subparsers(dest='subcommand', required=True)
+    submit_parser = subcommands.add_parser('submit')
+    args = parser.parse_args()
+
+    if args.subcommand == 'submit':
+        asyncio.run(submit())
