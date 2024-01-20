@@ -18,7 +18,6 @@ from newspaper import Article
 
 from articlesa.logger import logger
 from articlesa.types import ParsedArticle, relative_to_absolute_url, HostBlacklist
-from articlesa.worker.scrapingbee import SCRAPINGBEE_API_KEY, SCRAPINGBEE_URL, ScrapingBeeResponse
 
 
 blacklist = HostBlacklist()
@@ -62,36 +61,6 @@ async def download_article(session: Session, url: str) -> str:
         # with open('image.png', 'wb') as of:
         #     of.write((await session.get_screenshot()).getbuffer())
         return await session.get_page_source()
-
-
-"""
-        url='https://app.scrapingbee.com/api/v1/',
-        params={
-            'api_key': '9R0JNUIEG8GRP1EXMT7H1VLEIJA3OGA7W3W0PDJX4R0ZFJVUVVXMHW03WWMGZCD4BG2U1TYV051E67BX',
-            'url': 'http://httpbin.org/anything?json',
-            'screenshot': 'true',
-            'json_response': 'true',
-        },
-"""
-
-async def download_article_scrapingbee(session: ClientSession, url: str) -> str:
-    """Given a url, download the article and return the html as a string."""
-    logger.debug(f"scraping article from url {url}")
-    params = {
-        'api_key': SCRAPINGBEE_API_KEY,
-        'url': url,
-        'screenshot': 'false',
-        'json_response': 'true',
-    }
-    async with session.get(SCRAPINGBEE_URL, params=params) as response:
-        response.raise_for_status()
-        data = await response.json()
-        scrape_response = ScrapingBeeResponse.model_validate(data)
-        # TODO: save screenshot
-        # TODO: save response metadata
-        if scrape_response.type != "html":
-            raise ValueError(f"expected html response, got {scrape_response.type}")
-        return scrape_response.body
 
 
 async def parse_article(ctx: dict, url: str) -> dict:
@@ -178,10 +147,7 @@ if __name__ == "__main__":
 
     async def main(args):
         if args.subcommand == "download":
-            if args.method == "scrapingbee":
-                async with ClientSession() as session:
-                    await download_article_scrapingbee(session, args.url)
-            elif args.method == "arsenic":
+            if args.method == "arsenic":
                 await download_article(Session(), args.url)
 
     asyncio.run(main(args))

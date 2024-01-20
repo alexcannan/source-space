@@ -5,6 +5,7 @@ from urllib.parse import urlparse
 
 
 class RedisConfig:
+    """ Configuration for the redis database. """
     url: str = os.getenv("REDIS_URL", "redis://localhost:6379")
 
     @property
